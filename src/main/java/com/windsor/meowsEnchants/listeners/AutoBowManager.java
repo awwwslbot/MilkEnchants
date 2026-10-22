@@ -8,7 +8,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,7 +25,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class AutoBowManager {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AutoBowManager.class);
+
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
+
+    private static volatile Method getHandleMethod;
+    private static volatile Method releaseUsingItemMethod;
+    private static volatile boolean releaseUnavailable;
 
     private AutoBowManager() {
     }
@@ -87,7 +96,7 @@ public final class AutoBowManager {
 
         session.firing = true;
         try {
-            player.completeUsingActiveItem();
+            releaseUsingItem(player);
         } finally {
             session.firing = false;
         }
@@ -102,6 +111,37 @@ public final class AutoBowManager {
             session.delay = session.refireDelay;
         } else {
             player.startUsingItem(EquipmentSlot.HAND);
+        }
+    }
+
+    /**
+     * 调用 NMS 的 {@code LivingEntity#releaseUsingItem()}。
+     * <p>
+     * Bukkit 的 {@code completeUsingActiveItem()} 走的是“消耗品完成”路径
+     * （{@code finishUsingItem}），对弓不会发射；必须走 releaseUsingItem 才会
+     * 触发 {@code BowItem.releaseUsing} 和 {@code EntityShootBowEvent}。
+     */
+    private static void releaseUsingItem(Player player) {
+        if (releaseUnavailable) {
+            return;
+        }
+        try {
+            Method handleGetter = getHandleMethod;
+            if (handleGetter == null) {
+                handleGetter = player.getClass().getMethod("getHandle");
+                getHandleMethod = handleGetter;
+            }
+            Object handle = handleGetter.invoke(player);
+
+            Method release = releaseUsingItemMethod;
+            if (release == null) {
+                release = handle.getClass().getMethod("releaseUsingItem");
+                releaseUsingItemMethod = release;
+            }
+            release.invoke(handle);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            releaseUnavailable = true;
+            LOGGER.error("无法调用 releaseUsingItem，rapid_fire 将无法发射箭矢", e);
         }
     }
 

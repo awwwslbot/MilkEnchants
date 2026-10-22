@@ -405,7 +405,7 @@ actions:
 - 仅对弓生效（不含弩），需要配合 `RIGHT_CLICK` 触发器。
 - power 使用原版公式：`power = ((t² + 2t) / 3)`，`t = 已用 tick / 20`；只有 `power = 1.0` 才发射。
 - 不会加速拉弓、不会修改剩余使用时间，纯粹是“拉满后自动松手”。
-- 发射走 `completeUsingActiveItem()`，保留原版箭矢消耗、Infinity、Power/Punch/Flame，并触发 `EntityShootBowEvent`（因此 `multi_arrow` 等 `BOW_SHOOT` 动作仍然生效）。
+- 发射调用 `releaseUsingItem()`（NMS），保留原版箭矢消耗、Infinity、Power/Punch/Flame，并触发 `EntityShootBowEvent`（因此 `multi_arrow` 等 `BOW_SHOOT` 动作仍然生效）。
 - 玩家松手、切物品/切副手、死亡、退出时任务自动停止。`refire_delay > 0` 时若玩家在间隔内松手，服务端可能无法感知，建议保持 0。
 
 ---

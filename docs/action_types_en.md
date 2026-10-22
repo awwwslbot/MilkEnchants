@@ -330,7 +330,7 @@ actions:
 - Bows only. Use it with the `RIGHT_CLICK` trigger.
 - Power uses the vanilla formula: `power = ((t² + 2t) / 3)` with `t = used ticks / 20`; it fires only at `power = 1.0`.
 - It does not accelerate drawing or modify the remaining use time.
-- Firing uses `completeUsingActiveItem()`, so vanilla ammo consumption, Infinity, Power/Punch/Flame and `EntityShootBowEvent` are preserved.
+- Firing calls `releaseUsingItem()` (NMS), so vanilla ammo consumption, Infinity, Power/Punch/Flame and `EntityShootBowEvent` are preserved.
 - Tasks stop on release, item switch, death or quit.
 
 ---

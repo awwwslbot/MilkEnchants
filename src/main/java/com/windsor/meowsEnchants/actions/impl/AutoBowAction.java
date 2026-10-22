@@ -17,8 +17,8 @@ import java.util.Map;
  * 只有 power 达到满值（原版 20 tick）后才自动发射，并可选自动开始下一轮蓄力。
  * <p>
  * 本动作不改变蓄力速度，也不会缩短/加快拉弓；它只负责“拉满后自动松手”。
- * 发射走 {@link Player#completeUsingActiveItem()}，保留原版箭矢消耗、Infinity、
- * Power/Punch/Flame 附魔以及 {@code EntityShootBowEvent}。
+ * 发射调用 NMS 的 {@code LivingEntity#releaseUsingItem()}，保留原版箭矢消耗、
+ * Infinity、Power/Punch/Flame 附魔以及 {@code EntityShootBowEvent}。
  */
 public class AutoBowAction implements Action {
 

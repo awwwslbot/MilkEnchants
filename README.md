@@ -143,5 +143,5 @@ mvn clean package
 构建产物位于：
 
 ```text
-target/meowsenchants-0.2-milk.6.jar
+target/meowsenchants-0.2-milk.7.jar
 ```
