@@ -357,6 +357,31 @@ actions:
 
 ---
 
+### draw_accelerate（加速蓄力）
+
+拉弓时每 tick 额外推进蓄力进度，让弓更早达到原版 power 满值。
+
+| 参数 | 类型 | 必须 | 默认值 | 描述 |
+| --- | --- | --- | --- | --- |
+| `extra_ticks` | ScalingFunction | 否 | `1.0` | 每 tick 额外推进的蓄力 tick 数 |
+
+```yaml
+actions:
+  accelerate:
+    type: draw_accelerate
+    extra_ticks:
+      base: 1
+      per_level: 1
+```
+
+**说明：**
+- 仅对弓生效（不含弩），需要配合 `RIGHT_CLICK` 触发器。
+- 不改变客户端拉弓动画，只修改服务端的剩余使用时间；实际满蓄力时间约为 `20 / (1 + extra_ticks)` tick。
+- 单独使用时，玩家提前松手也会按加速后的进度计算箭速。
+- 与 `auto_bow` 同时存在时，`auto_bow` 会更早看到 `power = 1.0` 并自动发射。
+
+---
+
 ### auto_bow（自动连射）
 
 拉弓后每 tick 读取实际蓄力进度并计算弓的 power，**只有拉满（原版 20 tick）后才自动发射**；可选自动开始下一轮蓄力。该动作不改变蓄力速度。

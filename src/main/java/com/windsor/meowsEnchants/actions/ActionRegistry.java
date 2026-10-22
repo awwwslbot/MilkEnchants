@@ -37,6 +37,7 @@ public final class ActionRegistry {
         factories.put("command", CommandAction::new);
         factories.put("block_break", BlockBreakAction::new);
         factories.put("auto_bow", AutoBowAction::new);
+        factories.put("draw_accelerate", DrawAccelerateAction::new);
     }
 
     private ActionRegistry() {}

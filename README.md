@@ -83,7 +83,7 @@ Paper 的 Registry Mutation API 标记为实验性，未来 Paper/Folia 更新�
 
 附魔触发时执行的动作由 `actions` 列表声明并按顺序执行。当前内置动作包括：
 
-`potion_effect`, `bonus_damage`, `healthsteal`, `teleport`, `explosion`, `velocity`, `shockwave`, `break_armor`, `drop_head`, `attribute_modifier`, `multi_break`, `vacuum_drops`, `replant`, `multi_arrow`, `auto_bow`, `repair`, `hook`, `feast`, `deflect`, `till`, `reflect_damage`, `command`, `block_break`
+`potion_effect`, `bonus_damage`, `healthsteal`, `teleport`, `explosion`, `velocity`, `shockwave`, `break_armor`, `drop_head`, `attribute_modifier`, `multi_break`, `vacuum_drops`, `replant`, `multi_arrow`, `auto_bow`, `draw_accelerate`, `repair`, `hook`, `feast`, `deflect`, `till`, `reflect_damage`, `command`, `block_break`
 
 详细动作参数不写在 README 中，请查看：
 
@@ -143,5 +143,5 @@ mvn clean package
 构建产物位于：
 
 ```text
-target/meowsenchants-0.2-milk.5.jar
+target/meowsenchants-0.2-milk.6.jar
 ```

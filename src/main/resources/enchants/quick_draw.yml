@@ -1,0 +1,43 @@
+name: "<gradient:#7BE0FF:#3A86FF>急速"
+
+# 附魔描述，显示在附魔查询页面(GUI)的lore中，支持 Bukkit 颜色代码与 MiniMessage
+description:
+  - "&f拉弓速度提升，更早达到满蓄力"
+  - "&7可用于：&e弓"
+  - "&d最高等级：3"
+  - "&7提升等级时："
+  - "&a进一步缩短满蓄力所需时间"
+
+# 最高等级
+max_level: 3
+# 铁砧基础等级开销
+anvil_cost: 3
+
+# 附魔台获取规则
+enchanting_table:
+  enabled: true
+  chance: 0.01
+  min_cost: 30
+  max_cost: 30
+
+# 村民交易获取规则
+villager_trades:
+  enabled: false
+  chance: 0.01
+  treasure: true
+
+# 可应用物品：仅弓
+applicable_items: BOW
+
+# 开始拉弓时启动加速任务
+trigger: RIGHT_CLICK
+target: SELF
+cooldown: 0
+
+actions:
+  accelerate:
+    type: draw_accelerate
+    # 每 tick 额外推进的蓄力 tick 数
+    extra_ticks:
+      base: 1
+      per_level: 1

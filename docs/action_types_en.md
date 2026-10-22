@@ -284,6 +284,31 @@ actions:
       per_level: 2
 ```
 ***
+### draw\_accelerate
+
+Advances the draw progress by extra ticks every tick while drawing, so the bow reaches vanilla full power earlier.
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `extra_ticks` | ScalingFunction | No | `1.0` | Extra draw ticks applied every tick |
+
+```yaml
+actions:
+  accelerate:
+    type: draw_accelerate
+    extra_ticks:
+      base: 1
+      per_level: 1
+```
+
+**Notes:**
+- Bows only. Use it with the `RIGHT_CLICK` trigger.
+- The client draw animation is unchanged; only the server-side remaining use time is reduced. Full power is reached in about `20 / (1 + extra_ticks)` ticks.
+- Combined with `auto_bow`, the latter sees `power = 1.0` earlier and fires automatically.
+- If used alone, releasing early still produces full-power speed based on the accelerated progress.
+
+---
+
 ### auto\_bow
 
 After the bow starts drawing, checks the actual draw progress every tick and releases automatically **only when the bow is fully drawn (20 vanilla ticks)**. Optionally starts the next draw. This action does not change draw speed.

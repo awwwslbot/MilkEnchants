@@ -26,5 +26,6 @@ public class ConnectionListener implements Listener {
         PassiveTaskManager.stopTaskForPlayer(event.getPlayer());
         // 停止自动连射任务
         AutoBowManager.stop(event.getPlayer());
+        DrawAccelerateManager.stop(event.getPlayer());
     }
 }
