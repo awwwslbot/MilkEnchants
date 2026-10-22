@@ -2,7 +2,7 @@ name: "<gradient:#FFD166:#EF476F>连射"
 
 # 附魔描述，显示在附魔查询页面(GUI)的lore中，支持 Bukkit 颜色代码与 MiniMessage
 description:
-  - "&f拉弓速度大幅提升，拉满后自动发射并继续蓄力"
+  - "&f拉满后自动发射，并继续下一轮蓄力"
   - "&7可用于：&e弓"
   - "&d最高等级：1"
   - "&c此附魔超载提升等级无任何收益"
@@ -36,9 +36,7 @@ cooldown: 0
 actions:
   auto:
     type: auto_bow
-    # 蓄力速度倍率：原版 20 tick 拉满，2.0 即 10 tick 拉满
-    draw_speed: 2.0
-    # 发射后自动开始下一轮蓄力
+    # 拉满后自动发射，不改变蓄力速度
     refire: true
     # 两轮之间的间隔（tick）
     refire_delay: 0

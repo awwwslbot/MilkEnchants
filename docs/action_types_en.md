@@ -286,11 +286,10 @@ actions:
 ***
 ### auto\_bow
 
-Checks the bow power every tick and releases automatically once it reaches the maximum, optionally starting the next draw.
+After the bow starts drawing, checks the actual draw progress every tick and releases automatically **only when the bow is fully drawn (20 vanilla ticks)**. Optionally starts the next draw. This action does not change draw speed.
 
 | Parameter | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `draw_speed` | ScalingFunction | No | `1.0` | Draw speed multiplier; full power is reached after `20 / draw_speed` ticks |
 | `refire` | boolean | No | `true` | Start the next draw automatically |
 | `refire_delay` | int | No | `0` | Ticks between shots |
 | `max_shots` | int | No | `0` | Maximum shots, 0 = unlimited |
@@ -299,15 +298,14 @@ Checks the bow power every tick and releases automatically once it reaches the m
 actions:
   auto:
     type: auto_bow
-    draw_speed: 2.0      # full power in 10 ticks
     refire: true
 ```
 
 **Notes:**
 - Bows only. Use it with the `RIGHT_CLICK` trigger.
-- There is no fixed `draw_ticks`: each tick the action computes power from `used ticks × draw_speed` and fires at power 1.0.
+- Power uses the vanilla formula: `power = ((t² + 2t) / 3)` with `t = used ticks / 20`; it fires only at `power = 1.0`.
+- It does not accelerate drawing or modify the remaining use time.
 - Firing uses `completeUsingActiveItem()`, so vanilla ammo consumption, Infinity, Power/Punch/Flame and `EntityShootBowEvent` are preserved.
-- The client animation still follows vanilla timing while the arrow is fired at full power.
 - Tasks stop on release, item switch, death or quit.
 
 ---

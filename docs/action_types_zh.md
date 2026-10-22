@@ -359,11 +359,10 @@ actions:
 
 ### auto_bow（自动连射）
 
-每 tick 根据玩家当前的蓄力进度计算弓的 power，达到满值后自动发射；可选自动开始下一轮蓄力。
+拉弓后每 tick 读取实际蓄力进度并计算弓的 power，**只有拉满（原版 20 tick）后才自动发射**；可选自动开始下一轮蓄力。该动作不改变蓄力速度。
 
 | 参数 | 类型 | 必须 | 默认值 | 描述 |
 | --- | --- | --- | --- | --- |
-| `draw_speed` | ScalingFunction | 否 | `1.0` | 蓄力速度倍率；`20 / draw_speed` 个 tick 达到满蓄力 |
 | `refire` | boolean | 否 | `true` | 发射后是否自动开始下一轮 |
 | `refire_delay` | int | 否 | `0` | 两轮之间等待的 tick |
 | `max_shots` | int | 否 | `0` | 最大射击次数，0 = 不限 |
@@ -372,7 +371,6 @@ actions:
 actions:
   auto:
     type: auto_bow
-    draw_speed: 2.0      # 10 tick 拉满
     refire: true
     refire_delay: 0
     max_shots: 0
@@ -380,9 +378,9 @@ actions:
 
 **说明：**
 - 仅对弓生效（不含弩），需要配合 `RIGHT_CLICK` 触发器。
-- 动作本身没有固定 `draw_ticks`：它每 tick 用 `已用 tick × draw_speed` 计算 power，power 满 1.0 才发射。`draw_speed` 才是“让力量更早达到 max”的参数。
+- power 使用原版公式：`power = ((t² + 2t) / 3)`，`t = 已用 tick / 20`；只有 `power = 1.0` 才发射。
+- 不会加速拉弓、不会修改剩余使用时间，纯粹是“拉满后自动松手”。
 - 发射走 `completeUsingActiveItem()`，保留原版箭矢消耗、Infinity、Power/Punch/Flame，并触发 `EntityShootBowEvent`（因此 `multi_arrow` 等 `BOW_SHOOT` 动作仍然生效）。
-- 客户端拉弓动画仍按原版 20 tick 显示，但箭按满蓄力飞行。
 - 玩家松手、切物品/切副手、死亡、退出时任务自动停止。`refire_delay > 0` 时若玩家在间隔内松手，服务端可能无法感知，建议保持 0。
 
 ---

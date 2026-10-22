@@ -17,8 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 维护“自动连射”的逐 tick 任务。每个玩家最多一个会话，
  * 任务运行在玩家所属的 region/主线程调度器上。
  * <p>
- * 每 tick 根据实际蓄力 tick 与 {@code draw_speed} 计算弓的 power，
- * 达到满值才发射。
+ * 每 tick 读取实际蓄力 tick 计算弓的 power，只有满蓄力（原版 20 tick）才发射。
+ * 本类不改变蓄力速度。
  */
 public final class AutoBowManager {
 
@@ -27,14 +27,12 @@ public final class AutoBowManager {
     private AutoBowManager() {
     }
 
-    public static void start(Player player, Plugin plugin, Key enchantKey,
-                             AutoBowAction action, double drawSpeed) {
+    public static void start(Player player, Plugin plugin, Key enchantKey, AutoBowAction action) {
         if (player == null || plugin == null) return;
         stop(player);
 
         Session session = new Session(
                 enchantKey,
-                drawSpeed,
                 action.isRefire(),
                 action.getRefireDelay(),
                 action.getMaxShots()
@@ -79,19 +77,12 @@ public final class AutoBowManager {
         }
 
         int used = player.getActiveItemUsedTime();
-        double effectiveTicks = used * session.drawSpeed;
-        if (AutoBowAction.powerForTicks(effectiveTicks) < 1.0) {
-            return;
+        if (AutoBowAction.powerForTicks(used) < 1.0) {
+            return; // 还没拉满
         }
         if (session.maxShots > 0 && session.shots >= session.maxShots) {
             stop(player);
             return;
-        }
-
-        // 提前蓄力：把剩余时间改成“已使用 20 tick”，让原版按满蓄力计算
-        if (used < 20) {
-            int remaining = player.getActiveItemRemainingTime();
-            player.setActiveItemRemainingTime(Math.max(0, remaining - (20 - used)));
         }
 
         session.firing = true;
@@ -142,7 +133,6 @@ public final class AutoBowManager {
 
     private static final class Session {
         private final Key enchantKey;
-        private final double drawSpeed;
         private final boolean refire;
         private final int refireDelay;
         private final int maxShots;
@@ -153,10 +143,8 @@ public final class AutoBowManager {
         private boolean firing;
         private boolean clientStopped;
 
-        private Session(Key enchantKey, double drawSpeed, boolean refire,
-                        int refireDelay, int maxShots) {
+        private Session(Key enchantKey, boolean refire, int refireDelay, int maxShots) {
             this.enchantKey = enchantKey;
-            this.drawSpeed = drawSpeed;
             this.refire = refire;
             this.refireDelay = refireDelay;
             this.maxShots = maxShots;
