@@ -16,6 +16,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 维护“自动连射”的逐 tick 任务。每个玩家最多一个会话，
  * 任务运行在玩家所属的 region/主线程调度器上。
+ * <p>
+ * 每 tick 根据实际蓄力 tick 与 {@code draw_speed} 计算弓的 power，
+ * 达到满值才发射。
  */
 public final class AutoBowManager {
 
@@ -25,14 +28,13 @@ public final class AutoBowManager {
     }
 
     public static void start(Player player, Plugin plugin, Key enchantKey,
-                             AutoBowAction action, int drawTicks) {
+                             AutoBowAction action, double drawSpeed) {
         if (player == null || plugin == null) return;
         stop(player);
 
         Session session = new Session(
                 enchantKey,
-                drawTicks,
-                action.isFullPower(),
+                drawSpeed,
                 action.isRefire(),
                 action.getRefireDelay(),
                 action.getMaxShots()
@@ -77,7 +79,8 @@ public final class AutoBowManager {
         }
 
         int used = player.getActiveItemUsedTime();
-        if (used < session.drawTicks) {
+        double effectiveTicks = used * session.drawSpeed;
+        if (AutoBowAction.powerForTicks(effectiveTicks) < 1.0) {
             return;
         }
         if (session.maxShots > 0 && session.shots >= session.maxShots) {
@@ -86,7 +89,7 @@ public final class AutoBowManager {
         }
 
         // 提前蓄力：把剩余时间改成“已使用 20 tick”，让原版按满蓄力计算
-        if (session.fullPower && used < 20) {
+        if (used < 20) {
             int remaining = player.getActiveItemRemainingTime();
             player.setActiveItemRemainingTime(Math.max(0, remaining - (20 - used)));
         }
@@ -139,8 +142,7 @@ public final class AutoBowManager {
 
     private static final class Session {
         private final Key enchantKey;
-        private final int drawTicks;
-        private final boolean fullPower;
+        private final double drawSpeed;
         private final boolean refire;
         private final int refireDelay;
         private final int maxShots;
@@ -151,11 +153,10 @@ public final class AutoBowManager {
         private boolean firing;
         private boolean clientStopped;
 
-        private Session(Key enchantKey, int drawTicks, boolean fullPower, boolean refire,
+        private Session(Key enchantKey, double drawSpeed, boolean refire,
                         int refireDelay, int maxShots) {
             this.enchantKey = enchantKey;
-            this.drawTicks = drawTicks;
-            this.fullPower = fullPower;
+            this.drawSpeed = drawSpeed;
             this.refire = refire;
             this.refireDelay = refireDelay;
             this.maxShots = maxShots;

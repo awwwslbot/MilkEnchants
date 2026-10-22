@@ -286,33 +286,28 @@ actions:
 ***
 ### auto\_bow
 
-Automatically release the bow once the configured draw time is reached, optionally starting the next draw.
+Checks the bow power every tick and releases automatically once it reaches the maximum, optionally starting the next draw.
 
 | Parameter | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `draw_ticks` | ScalingFunction | No | `20` | Ticks considered as a full draw |
-| `full_power` | boolean | No | `true` | Treat early releases as full power |
+| `draw_speed` | ScalingFunction | No | `1.0` | Draw speed multiplier; full power is reached after `20 / draw_speed` ticks |
 | `refire` | boolean | No | `true` | Start the next draw automatically |
 | `refire_delay` | int | No | `0` | Ticks between shots |
 | `max_shots` | int | No | `0` | Maximum shots, 0 = unlimited |
-
-> A level-less enchant can use a plain value, e.g. `draw_ticks: 10`.
 
 ```yaml
 actions:
   auto:
     type: auto_bow
-    draw_ticks:
-      base: 14
-      per_level: -3
-    full_power: true
+    draw_speed: 2.0      # full power in 10 ticks
     refire: true
 ```
 
 **Notes:**
 - Bows only. Use it with the `RIGHT_CLICK` trigger.
+- There is no fixed `draw_ticks`: each tick the action computes power from `used ticks × draw_speed` and fires at power 1.0.
 - Firing uses `completeUsingActiveItem()`, so vanilla ammo consumption, Infinity, Power/Punch/Flame and `EntityShootBowEvent` are preserved.
-- With `draw_ticks < 20`, the client animation still follows vanilla timing while the arrow is fired at full power.
+- The client animation still follows vanilla timing while the arrow is fired at full power.
 - Tasks stop on release, item switch, death or quit.
 
 ---

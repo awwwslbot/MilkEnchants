@@ -359,26 +359,20 @@ actions:
 
 ### auto_bow（自动连射）
 
-拉弓时跟踪蓄力进度，达到 `draw_ticks` 后自动发射；可选自动开始下一轮蓄力。
+每 tick 根据玩家当前的蓄力进度计算弓的 power，达到满值后自动发射；可选自动开始下一轮蓄力。
 
 | 参数 | 类型 | 必须 | 默认值 | 描述 |
 | --- | --- | --- | --- | --- |
-| `draw_ticks` | ScalingFunction | 否 | `20` | 判定为“满蓄力”的 tick 数；小于 20 即比原版更快 |
-| `full_power` | boolean | 否 | `true` | 提前发射时是否按满蓄力计算箭速 |
+| `draw_speed` | ScalingFunction | 否 | `1.0` | 蓄力速度倍率；`20 / draw_speed` 个 tick 达到满蓄力 |
 | `refire` | boolean | 否 | `true` | 发射后是否自动开始下一轮 |
 | `refire_delay` | int | 否 | `0` | 两轮之间等待的 tick |
 | `max_shots` | int | 否 | `0` | 最大射击次数，0 = 不限 |
-
-> 无等级的附魔可以直接写固定值，例如 `draw_ticks: 10`，不需要 `base/per_level`。
 
 ```yaml
 actions:
   auto:
     type: auto_bow
-    draw_ticks:
-      base: 14
-      per_level: -3
-    full_power: true
+    draw_speed: 2.0      # 10 tick 拉满
     refire: true
     refire_delay: 0
     max_shots: 0
@@ -386,8 +380,9 @@ actions:
 
 **说明：**
 - 仅对弓生效（不含弩），需要配合 `RIGHT_CLICK` 触发器。
+- 动作本身没有固定 `draw_ticks`：它每 tick 用 `已用 tick × draw_speed` 计算 power，power 满 1.0 才发射。`draw_speed` 才是“让力量更早达到 max”的参数。
 - 发射走 `completeUsingActiveItem()`，保留原版箭矢消耗、Infinity、Power/Punch/Flame，并触发 `EntityShootBowEvent`（因此 `multi_arrow` 等 `BOW_SHOOT` 动作仍然生效）。
-- `draw_ticks < 20` 时客户端动画仍按原版显示，但箭按满蓄力飞行。
+- 客户端拉弓动画仍按原版 20 tick 显示，但箭按满蓄力飞行。
 - 玩家松手、切物品/切副手、死亡、退出时任务自动停止。`refire_delay > 0` 时若玩家在间隔内松手，服务端可能无法感知，建议保持 0。
 
 ---

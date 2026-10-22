@@ -36,10 +36,8 @@ cooldown: 0
 actions:
   auto:
     type: auto_bow
-    # 固定蓄力时间：到 10 tick 即视为“满蓄力”
-    draw_ticks: 10
-    # 提前发射时按满蓄力计算箭速
-    full_power: true
+    # 蓄力速度倍率：原版 20 tick 拉满，2.0 即 10 tick 拉满
+    draw_speed: 2.0
     # 发射后自动开始下一轮蓄力
     refire: true
     # 两轮之间的间隔（tick）

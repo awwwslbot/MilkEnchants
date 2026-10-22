@@ -16,29 +16,28 @@ import org.bukkit.inventory.ItemStack;
 import java.util.Map;
 
 /**
- * 拉弓时启动一个逐 tick 的监控：达到配置的蓄力 tick 后自动发射，
- * 并可自动开始下一轮蓄力。
+ * 拉弓时启动逐 tick 监控：每 tick 根据玩家的实际蓄力进度计算弓的 power，
+ * 当 power 达到满值后自动发射，并可自动开始下一轮蓄力。
  * <p>
- * 发射走 {@link Player#completeUsingActiveItem()}，因此会保留原版的箭矢消耗、
- * Infinity、Power/Punch/Flame 附魔以及 {@code EntityShootBowEvent}。
- * 当 {@code draw_ticks < 20} 且 {@code full_power: true} 时，会把剩余使用时间
- * 改成“已拉满 20 tick”，让原版按满蓄力计算箭速。
+ * {@code draw_speed} 是蓄力速度倍率：原版 20 tick 拉满，倍率 2.0 即 10 tick 拉满。
+ * 发射走 {@link Player#completeUsingActiveItem()}，保留原版箭矢消耗、Infinity、
+ * Power/Punch/Flame 附魔以及 {@code EntityShootBowEvent}。
  */
 public class AutoBowAction implements Action {
 
-    private final ScalingFunction drawTicks;
-    private final boolean fullPower;
+    private static final int VANILLA_FULL_DRAW_TICKS = 20;
+
+    private final ScalingFunction drawSpeed;
     private final boolean refire;
     private final int refireDelay;
     private final int maxShots;
 
     public AutoBowAction(Map<String, Object> params) {
-        Object drawTicksObj = params.get("draw_ticks");
-        this.drawTicks = drawTicksObj == null
-                ? new FixedScaling(20)
-                : ScalingFunctionLoader.load(drawTicksObj);
+        Object drawSpeedObj = params.get("draw_speed");
+        this.drawSpeed = drawSpeedObj == null
+                ? new FixedScaling(1.0)
+                : ScalingFunctionLoader.load(drawSpeedObj);
 
-        this.fullPower = !Boolean.FALSE.equals(params.get("full_power"));
         this.refire = !Boolean.FALSE.equals(params.get("refire"));
         this.refireDelay = Math.max(0, getInt(params.get("refire_delay"), 0));
         this.maxShots = Math.max(0, getInt(params.get("max_shots"), 0));
@@ -65,9 +64,16 @@ public class AutoBowAction implements Action {
             return false;
         }
 
-        int ticks = Math.max(1, (int) drawTicks.getValue(context.getEnchantLevel()));
-        AutoBowManager.start(player, context.getPlugin(), enchantKey, this, ticks);
+        double speed = Math.max(0.01, drawSpeed.getValue(context.getEnchantLevel()));
+        AutoBowManager.start(player, context.getPlugin(), enchantKey, this, speed);
         return true;
+    }
+
+    /** 原版弓的 power 曲线，ticks 为有效蓄力 tick。 */
+    public static double powerForTicks(double ticks) {
+        double t = ticks / VANILLA_FULL_DRAW_TICKS;
+        double power = (t * t + 2.0 * t) / 3.0;
+        return Math.min(1.0, Math.max(0.0, power));
     }
 
     private static boolean isEnchantedBow(ItemStack item, Key enchantKey) {
@@ -78,10 +84,6 @@ public class AutoBowAction implements Action {
 
     private static int getInt(Object value, int fallback) {
         return value instanceof Number number ? number.intValue() : fallback;
-    }
-
-    public boolean isFullPower() {
-        return fullPower;
     }
 
     public boolean isRefire() {
