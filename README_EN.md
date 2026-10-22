@@ -141,7 +141,7 @@ mvn clean package
 Build output:
 
 ```text
-target/meowsenchants-0.2-milk.2.jar
+target/meowsenchants-0.2-milk.3.jar
 ```
 
 ## License

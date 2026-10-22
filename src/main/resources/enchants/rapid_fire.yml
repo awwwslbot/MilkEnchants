@@ -4,12 +4,11 @@ name: "<gradient:#FFD166:#EF476F>连射"
 description:
   - "&f拉弓速度大幅提升，拉满后自动发射并继续蓄力"
   - "&7可用于：&e弓"
-  - "&d最高等级：3"
-  - "&7提升等级时："
-  - "&a缩短蓄力时间"
+  - "&d最高等级：1"
+  - "&c此附魔超载提升等级无任何收益"
 
 # 最高等级
-max_level: 3
+max_level: 1
 # 铁砧基础等级开销
 anvil_cost: 4
 
@@ -37,10 +36,8 @@ cooldown: 0
 actions:
   auto:
     type: auto_bow
-    # 到多少 tick 视为“满蓄力”（等级越高越快）
-    draw_ticks:
-      base: 14
-      per_level: -3
+    # 固定蓄力时间：到 10 tick 即视为“满蓄力”
+    draw_ticks: 10
     # 提前发射时按满蓄力计算箭速
     full_power: true
     # 发射后自动开始下一轮蓄力

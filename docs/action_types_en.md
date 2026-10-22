@@ -296,6 +296,8 @@ Automatically release the bow once the configured draw time is reached, optional
 | `refire_delay` | int | No | `0` | Ticks between shots |
 | `max_shots` | int | No | `0` | Maximum shots, 0 = unlimited |
 
+> A level-less enchant can use a plain value, e.g. `draw_ticks: 10`.
+
 ```yaml
 actions:
   auto:

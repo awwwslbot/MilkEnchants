@@ -369,6 +369,8 @@ actions:
 | `refire_delay` | int | 否 | `0` | 两轮之间等待的 tick |
 | `max_shots` | int | 否 | `0` | 最大射击次数，0 = 不限 |
 
+> 无等级的附魔可以直接写固定值，例如 `draw_ticks: 10`，不需要 `base/per_level`。
+
 ```yaml
 actions:
   auto:
