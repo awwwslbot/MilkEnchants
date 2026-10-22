@@ -1,0 +1,50 @@
+name: "<gradient:#6EE7FF:#FF7A00>熵变"
+
+# 附魔描述，显示在附魔查询页面(GUI)的lore中，支持 Bukkit 颜色代码与 MiniMessage
+description:
+  - "&f右键使用锄头，将冰块化为水、黑曜石化为熔岩"
+  - "&b冷却：0秒"
+  - "&7可用于：&e锄头"
+  - "&d最高等级：1"
+  - "&c此附魔超载提升等级无任何收益"
+
+# 最高等级
+max_level: 1
+# 铁砧基础等级开销
+anvil_cost: 4
+
+# 附魔台获取规则
+enchanting_table:
+  enabled: true
+  chance: 0.01
+  min_cost: 30
+  max_cost: 30
+
+# 村民交易获取规则
+villager_trades:
+  enabled: false
+  chance: 0.01
+  treasure: true
+
+# 可应用物品：仅锄头
+applicable_items: HOES
+
+# 右键方块触发
+trigger: RIGHT_CLICK
+target: SELF
+cooldown: 0
+
+actions:
+  entropy:
+    type: till
+    # 只处理点击的那一个方块
+    radius: 0
+    # 不继承默认的耕地转换表，避免把泥土也变成耕地
+    inherit_defaults: false
+    transforms:
+      ICE: WATER
+      OBSIDIAN: LAVA
+    consume_durability: true
+    protection_check: true
+    cancel_vanilla: true
+    drop_roots: false

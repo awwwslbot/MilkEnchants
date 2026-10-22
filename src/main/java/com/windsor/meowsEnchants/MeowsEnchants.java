@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants;
 
+import com.windsor.meowsEnchants.actions.impl.TillAction;
 import com.windsor.meowsEnchants.commands.EnchantsCommand;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
@@ -126,6 +127,7 @@ public class MeowsEnchants extends JavaPlugin {
             config.resolveParticle();
         });
         setEnchantConfigs(loaded);
+        TillAction.validateOverlap(loaded, getSLF4JLogger());
     }
 
     private void reloadRuntimeConfig() {

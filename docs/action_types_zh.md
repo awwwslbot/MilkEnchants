@@ -457,21 +457,49 @@ actions:
 
 ---
 
-### till（耕作）
+### till（方块转换）
 
-使用锄头时，在半径内耕作泥土/草方块。
+右键方块时，在半径内把指定方块转换为另一种方块。默认行为是“用锄头耕地”，
+但每个附魔都可以通过 `transforms` 声明自己独立的转换表。
 
-| 参数     | 类型            | 必须 | 默认值 | 描述       |
-| -------- | --------------- | ---- | ------ | ---------- |
-| `radius` | ScalingFunction | 是   | --     | 耕作半径   |
+| 参数 | 类型 | 必须 | 默认值 | 描述 |
+| --- | --- | --- | --- | --- |
+| `radius` | ScalingFunction | 是 | -- | 作用半径，0 = 只处理点击的方块 |
+| `transforms` | map | 否 | -- | 源方块 → 目标方块；键支持 `#minecraft:dirt` 形式的方块标签 |
+| `inherit_defaults` | boolean | 否 | `true` | 是否在原版耕地表（泥土/草方块/灰化土/菌丝→耕地，砂土/缠根泥土→泥土）基础上叠加 |
+| `require_item_types` | list | 否 | -- | 允许触发的物品材质，如 `[IRON_HOE, DIAMOND_HOE]` |
+| `require_item_tags` | list | 否 | -- | 允许触发的物品标签，如 `[minecraft:hoes]` |
+| `consume_durability` | boolean | 否 | `true` | 每转换一个方块是否消耗 1 点耐久 |
+| `protection_check` | boolean | 否 | `true` | 是否为每个方块模拟 `PlayerInteractEvent` 供保护插件拦截 |
+| `cancel_vanilla` | boolean | 否 | `true` | 至少转换一个方块后是否取消原版右键 |
+| `drop_roots` | boolean | 否 | `true` | 缠根泥土 → 泥土时是否掉落垂根 |
+
+> 不写 `require_item_types` / `require_item_tags` 时沿用旧行为：主手物品名必须包含 `HOE`。
+>
+> 多个附魔可以各自维护一张 `transforms` 表。**建议每个附魔的表互不重叠**：运行时按附魔逐个执行，
+> 重叠时“先改到的生效”，而附魔遍历顺序不保证稳定；插件会在 `onEnable` 时对重叠项打印警告。
 
 ```yaml
+# 默认耕地行为
 actions:
   farm:
     type: till
     radius:
       base: 1
       per_level: 1
+```
+
+```yaml
+# 自定义转换：右键把冰块变成水、黑曜石变成熔岩
+actions:
+  entropy:
+    type: till
+    radius: 0
+    inherit_defaults: false
+    transforms:
+      ICE: WATER
+      OBSIDIAN: LAVA
+    consume_durability: true
 ```
 
 ---
