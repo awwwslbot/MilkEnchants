@@ -613,3 +613,28 @@ actions:
 - `HAND` 和 `MAIN_HAND` 均指主手。
 - 耐久损耗受 Unbreaking 附魔影响，实际消耗可能因物品的 Unbreaking 等级而减少。
 - 若槽位为空或物品无法损坏，则不生效。
+
+---
+
+## 附魔级音效与粒子
+
+`sound` / `particle` 与 `trigger`、`target` 同级，不属于 `actions`：
+
+```yaml
+sound:
+  type: block.lava.extinguish   # 音效注册表 key
+  volume: 1.0
+  pitch: 1.2
+  location: BLOCK               # SELF（默认）/ TARGET / BLOCK
+
+particle:
+  type: cloud
+  count: 12
+  spread: 0.4
+  speed: 0.05
+  location: BLOCK
+```
+
+- `location` 语义：`SELF` = 玩家位置，`TARGET` = 目标实体位置，`BLOCK` = 本次交互/破坏的方块中心。
+- 音效使用 `Player#playSound(Location, ...)`：**只向触发者发包**，但声源是 `location` 指定的世界坐标，因此是带方位感的本地音效。
+- 音效与粒子只在本次动作全部成功执行后播放。

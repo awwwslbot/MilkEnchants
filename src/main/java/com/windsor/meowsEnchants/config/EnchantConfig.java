@@ -51,14 +51,17 @@ public class EnchantConfig {
         private final Sound sound;
         private final float volume;
         private final float pitch;
-        public SoundConfig(Sound sound, float volume, float pitch) {
+        private final ParticleConfig.LocationType location;
+        public SoundConfig(Sound sound, float volume, float pitch, ParticleConfig.LocationType location) {
             this.sound = sound;
             this.volume = volume;
             this.pitch = pitch;
+            this.location = location;
         }
         public Sound getSound() { return sound; }
         public float getVolume() { return volume; }
         public float getPitch() { return pitch; }
+        public ParticleConfig.LocationType getLocation() { return location; }
     }
 
     public static class ParticleConfig {
@@ -190,7 +193,14 @@ public class EnchantConfig {
         }
         float volume = ((Number) soundData.getOrDefault("volume", 1.0)).floatValue();
         float pitch = ((Number) soundData.getOrDefault("pitch", 1.0)).floatValue();
-        this.soundConfig = new SoundConfig(sound, volume, pitch);
+        String locStr = ((String) soundData.getOrDefault("location", "SELF")).toUpperCase();
+        ParticleConfig.LocationType location;
+        try {
+            location = ParticleConfig.LocationType.valueOf(locStr);
+        } catch (IllegalArgumentException e) {
+            location = ParticleConfig.LocationType.SELF;
+        }
+        this.soundConfig = new SoundConfig(sound, volume, pitch, location);
     }
 
     public void resolveParticle() {

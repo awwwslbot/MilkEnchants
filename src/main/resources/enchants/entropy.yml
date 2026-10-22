@@ -39,6 +39,8 @@ sound:
   type: block.lava.extinguish
   volume: 1.0
   pitch: 1.2
+  # 声源在被转换的方块上，但只向触发者发包
+  location: BLOCK
 
 actions:
   entropy:

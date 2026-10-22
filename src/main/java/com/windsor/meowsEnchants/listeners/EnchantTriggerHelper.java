@@ -307,10 +307,11 @@ public final class EnchantTriggerHelper {
     }
 
     private static void playEffects(Player player, EnchantConfig config, ActionContext context) {
-        // 音效
+        // 音效：player.playSound 只向该玩家发包，但仍使用指定的世界坐标作为声源
         EnchantConfig.SoundConfig sound = config.getSoundConfig();
         if (sound != null) {
-            player.playSound(player.getLocation(), sound.getSound(), sound.getVolume(), sound.getPitch());
+            Location soundLocation = getEffectLocation(sound.getLocation(), context);
+            player.playSound(soundLocation, sound.getSound(), sound.getVolume(), sound.getPitch());
         }
 
         // 粒子
