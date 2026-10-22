@@ -34,6 +34,12 @@ trigger: RIGHT_CLICK
 target: SELF
 cooldown: 0
 
+# 转换方块时的“刺啦”蒸发音效（水浇在高温方块上的嘶声）
+sound:
+  type: block.lava.extinguish
+  volume: 1.0
+  pitch: 1.2
+
 actions:
   entropy:
     type: till
