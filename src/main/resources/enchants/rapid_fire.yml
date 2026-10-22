@@ -1,0 +1,51 @@
+name: "<gradient:#FFD166:#EF476F>连射"
+
+# 附魔描述，显示在附魔查询页面(GUI)的lore中，支持 Bukkit 颜色代码与 MiniMessage
+description:
+  - "&f拉弓速度大幅提升，拉满后自动发射并继续蓄力"
+  - "&7可用于：&e弓"
+  - "&d最高等级：3"
+  - "&7提升等级时："
+  - "&a缩短蓄力时间"
+
+# 最高等级
+max_level: 3
+# 铁砧基础等级开销
+anvil_cost: 4
+
+# 附魔台获取规则
+enchanting_table:
+  enabled: true
+  chance: 0.01
+  min_cost: 30
+  max_cost: 30
+
+# 村民交易获取规则
+villager_trades:
+  enabled: false
+  chance: 0.01
+  treasure: true
+
+# 可应用物品：仅弓
+applicable_items: BOW
+
+# 开始拉弓时启动自动连射
+trigger: RIGHT_CLICK
+target: SELF
+cooldown: 0
+
+actions:
+  auto:
+    type: auto_bow
+    # 到多少 tick 视为“满蓄力”（等级越高越快）
+    draw_ticks:
+      base: 14
+      per_level: -3
+    # 提前发射时按满蓄力计算箭速
+    full_power: true
+    # 发射后自动开始下一轮蓄力
+    refire: true
+    # 两轮之间的间隔（tick）
+    refire_delay: 0
+    # 0 = 不限次数，直到玩家松手/切物品
+    max_shots: 0

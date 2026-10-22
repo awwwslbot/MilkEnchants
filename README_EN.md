@@ -81,7 +81,7 @@ Before actions execute, the plugin resolves the enchantment target according to 
 
 Actions are declared in the `actions` list and executed in order when the enchantment triggers. Built-in actions include:
 
-`potion_effect`, `bonus_damage`, `healthsteal`, `teleport`, `explosion`, `velocity`, `shockwave`, `break_armor`, `drop_head`, `attribute_modifier`, `multi_break`, `vacuum_drops`, `replant`, `multi_arrow`, `repair`, `hook`, `feast`, `deflect`, `till`, `reflect_damage`, `command`, `block_break`
+`potion_effect`, `bonus_damage`, `healthsteal`, `teleport`, `explosion`, `velocity`, `shockwave`, `break_armor`, `drop_head`, `attribute_modifier`, `multi_break`, `vacuum_drops`, `replant`, `multi_arrow`, `auto_bow`, `repair`, `hook`, `feast`, `deflect`, `till`, `reflect_damage`, `command`, `block_break`
 
 Detailed action parameters are not documented in this README. See:
 
@@ -141,7 +141,7 @@ mvn clean package
 Build output:
 
 ```text
-target/meowsenchants-0.2-milk.1.jar
+target/meowsenchants-0.2-milk.2.jar
 ```
 
 ## License

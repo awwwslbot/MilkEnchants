@@ -357,6 +357,39 @@ actions:
 
 ---
 
+### auto_bow（自动连射）
+
+拉弓时跟踪蓄力进度，达到 `draw_ticks` 后自动发射；可选自动开始下一轮蓄力。
+
+| 参数 | 类型 | 必须 | 默认值 | 描述 |
+| --- | --- | --- | --- | --- |
+| `draw_ticks` | ScalingFunction | 否 | `20` | 判定为“满蓄力”的 tick 数；小于 20 即比原版更快 |
+| `full_power` | boolean | 否 | `true` | 提前发射时是否按满蓄力计算箭速 |
+| `refire` | boolean | 否 | `true` | 发射后是否自动开始下一轮 |
+| `refire_delay` | int | 否 | `0` | 两轮之间等待的 tick |
+| `max_shots` | int | 否 | `0` | 最大射击次数，0 = 不限 |
+
+```yaml
+actions:
+  auto:
+    type: auto_bow
+    draw_ticks:
+      base: 14
+      per_level: -3
+    full_power: true
+    refire: true
+    refire_delay: 0
+    max_shots: 0
+```
+
+**说明：**
+- 仅对弓生效（不含弩），需要配合 `RIGHT_CLICK` 触发器。
+- 发射走 `completeUsingActiveItem()`，保留原版箭矢消耗、Infinity、Power/Punch/Flame，并触发 `EntityShootBowEvent`（因此 `multi_arrow` 等 `BOW_SHOOT` 动作仍然生效）。
+- `draw_ticks < 20` 时客户端动画仍按原版显示，但箭按满蓄力飞行。
+- 玩家松手、切物品/切副手、死亡、退出时任务自动停止。`refire_delay > 0` 时若玩家在间隔内松手，服务端可能无法感知，建议保持 0。
+
+---
+
 ### repair（修复）
 
 恢复物品的耐久度。

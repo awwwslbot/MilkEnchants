@@ -24,5 +24,7 @@ public class ConnectionListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         // 停止该玩家的 PASSIVE 任务
         PassiveTaskManager.stopTaskForPlayer(event.getPlayer());
+        // 停止自动连射任务
+        AutoBowManager.stop(event.getPlayer());
     }
 }

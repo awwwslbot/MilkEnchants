@@ -284,6 +284,37 @@ actions:
       per_level: 2
 ```
 ***
+### auto\_bow
+
+Automatically release the bow once the configured draw time is reached, optionally starting the next draw.
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `draw_ticks` | ScalingFunction | No | `20` | Ticks considered as a full draw |
+| `full_power` | boolean | No | `true` | Treat early releases as full power |
+| `refire` | boolean | No | `true` | Start the next draw automatically |
+| `refire_delay` | int | No | `0` | Ticks between shots |
+| `max_shots` | int | No | `0` | Maximum shots, 0 = unlimited |
+
+```yaml
+actions:
+  auto:
+    type: auto_bow
+    draw_ticks:
+      base: 14
+      per_level: -3
+    full_power: true
+    refire: true
+```
+
+**Notes:**
+- Bows only. Use it with the `RIGHT_CLICK` trigger.
+- Firing uses `completeUsingActiveItem()`, so vanilla ammo consumption, Infinity, Power/Punch/Flame and `EntityShootBowEvent` are preserved.
+- With `draw_ticks < 20`, the client animation still follows vanilla timing while the arrow is fired at full power.
+- Tasks stop on release, item switch, death or quit.
+
+---
+
 ### repair
 Restore the item's durability.
 | Parameter | Type            | Required | Default | Description                        |

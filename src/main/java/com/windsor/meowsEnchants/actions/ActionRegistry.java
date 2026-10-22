@@ -36,6 +36,7 @@ public final class ActionRegistry {
         factories.put("reflect_damage", ReflectDamageAction::new);
         factories.put("command", CommandAction::new);
         factories.put("block_break", BlockBreakAction::new);
+        factories.put("auto_bow", AutoBowAction::new);
     }
 
     private ActionRegistry() {}

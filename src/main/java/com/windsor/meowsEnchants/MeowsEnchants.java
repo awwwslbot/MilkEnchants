@@ -5,6 +5,8 @@ import com.windsor.meowsEnchants.commands.EnchantsCommand;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
 import com.windsor.meowsEnchants.gui.EnchantBrowser;
+import com.windsor.meowsEnchants.listeners.AutoBowListener;
+import com.windsor.meowsEnchants.listeners.AutoBowManager;
 import com.windsor.meowsEnchants.listeners.BlockDropItemListener;
 import com.windsor.meowsEnchants.listeners.BlockInteractionListener;
 import com.windsor.meowsEnchants.listeners.CombatListener;
@@ -87,6 +89,7 @@ public class MeowsEnchants extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new VillagerTradeListener(), this);
         getServer().getPluginManager().registerEvents(new EnchantTableListener(), this);
         getServer().getPluginManager().registerEvents(new BlockDropItemListener(), this);
+        getServer().getPluginManager().registerEvents(new AutoBowListener(), this);
 
         enchantBrowser = new EnchantBrowser(this);
         getServer().getPluginManager().registerEvents(enchantBrowser, this);
@@ -100,6 +103,7 @@ public class MeowsEnchants extends JavaPlugin {
     @Override
     public void onDisable() {
         PassiveTaskManager.stopAll();
+        AutoBowManager.stopAll();
         if (enchantBrowser != null) {
             enchantBrowser.shutdown();
             enchantBrowser = null;
