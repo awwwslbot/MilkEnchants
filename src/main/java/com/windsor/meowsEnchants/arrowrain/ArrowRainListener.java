@@ -12,6 +12,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Particle;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
@@ -33,7 +34,7 @@ import org.bukkit.util.Vector;
 
 /** Captures the actual fired bow once; impact never consults the shooter's current equipment. */
 public final class ArrowRainListener implements Listener, AutoCloseable {
-    private static final long RAIN_LIFETIME_TICKS = 40L;
+    private static final long RAIN_LIFETIME_TICKS = 30L;
     public static final NamespacedKey ENCHANT = new NamespacedKey("meowsenchants", "arrow_rain");
     public static final NamespacedKey GENERATED = new NamespacedKey("meowsenchants", "arrow_rain_generated");
     private final Plugin plugin;
@@ -41,6 +42,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     private final Map<UUID, Shot> sources = new ConcurrentHashMap<>();
     private final Set<Shot> shots = ConcurrentHashMap.newKeySet();
     private final Map<UUID, AbstractArrow> rainArrows = new ConcurrentHashMap<>();
+    private final Map<UUID, Trail> trails = new ConcurrentHashMap<>();
 
     ArrowRainListener(Plugin plugin) { this.plugin = plugin; }
 
@@ -56,11 +58,12 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         int level = enchantLevel(bow);
         if (level == 0) return;
 
-        trackSource(source, player, bow, level);
+        trackSource(source, player, bow, level, event.getConsumable());
     }
 
-    void trackSource(AbstractArrow source, Player player, ItemStack bow, int level) {
-        Shot shot = new Shot(source.getUniqueId(), player, level, bow, bow.clone());
+    void trackSource(AbstractArrow source, Player player, ItemStack bow, int level, ItemStack ammunition) {
+        Shot shot = new Shot(source.getUniqueId(), player, level, bow, bow.clone(),
+                ammunition == null ? null : ammunition.clone(), AmmunitionBudget.isFreeShot(source, bow, ammunition));
         Shot previous = sources.putIfAbsent(shot.sourceId, shot);
         if (previous != null) return;
         shots.add(shot);
@@ -79,7 +82,11 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         // A successful native bow launch occurs synchronously in the shooter's region, after
         // EntityShootBowEvent and before vanilla's normal one-point durability charge. Waiting
         // until this event also exempts arrows rejected by ProjectileLaunchEvent protection.
+        // Vanilla already paid for the original arrow before the shoot event. Reserve only the
+        // extra rain arrows now, and never inspect a remote shooter's inventory on impact.
+        shot.rainCount = AmmunitionBudget.reserve(shot.player, shot.ammunition, shot.freeAmmunition, RainPattern.count(shot.level));
         chargeDurability(shot.firedBow, shot.player, shot.level);
+        if (shot.rainCount == 0) finish(shot);
     }
 
     static int enchantLevel(ItemStack bow) {
@@ -102,7 +109,10 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     public void onHit(ProjectileHitEvent event) {
         if (event.isCancelled() || !enabled.get()) return;
         if (isRain(event.getEntity())) {
-            removeLater(event.getEntity()); // After vanilla has applied its normal damage/collision.
+            stopTrail(event.getEntity().getUniqueId());
+            // Ground arrows retain their spawn+30-tick deadline. Entity collisions still resolve
+            // natively; terminate any surviving deflection before another physics tick can hurt.
+            if (event.getHitEntity() != null) removeLater(event.getEntity());
             return;
         }
         Shot shot = sources.get(event.getEntity().getUniqueId());
@@ -121,7 +131,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
 
     private void startRain(Shot shot, Location centre, ArrowState state) {
         if (!active(shot) || !shot.rainStarted.compareAndSet(false, true)) return;
-        for (RainPattern.Drop drop : RainPattern.drops(shot.level, ThreadLocalRandom.current())) {
+        for (RainPattern.Drop drop : RainPattern.drops(shot.level, shot.rainCount, ThreadLocalRandom.current())) {
             Location spawn = centre.clone().add(drop.x(), RainPattern.HEIGHT, drop.z());
             if (spawn.getY() >= spawn.getWorld().getMaxHeight()
                     || spawn.getY() < spawn.getWorld().getMinHeight()) continue;
@@ -148,8 +158,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
             rain.setPierceLevel(0);
             rain.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
             rain.setPersistent(false);
-            // Native expiry still applies after disable, when plugin scheduler tasks cannot run.
-            rain.setLifetimeTicks(1199);
+            // Do not pre-age arrows: they must remain visible on the ground until spawn+30 ticks.
+            rain.setLifetimeTicks(0);
             rain.setVelocity(new Vector(0, -RainPattern.SPEED, 0));
             // Projectile pitch uses atan2(dy, horizontalSpeed), so downward is -90 degrees.
             // setVelocity does not update rotation. Set both current/old rotation before insertion
@@ -159,6 +169,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         if (!arrow.isValid()) return; // A protection plugin may cancel ProjectileLaunchEvent.
         rainArrows.put(arrow.getUniqueId(), arrow);
         shot.arrows.add(arrow);
+        startTrail(arrow);
         // This uses the entity scheduler so cleanup follows arrows across region boundaries.
         arrow.getScheduler().runDelayed(plugin, task -> removeOwned(arrow),
                 () -> rainArrows.remove(arrow.getUniqueId()), RAIN_LIFETIME_TICKS);
@@ -167,12 +178,45 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
 
     private boolean active(Shot shot) { return enabled.get() && shot.state.active(); }
 
+    private void startTrail(Arrow arrow) {
+        UUID id = arrow.getUniqueId();
+        Trail trail = new Trail();
+        trails.put(id, trail);
+        try {
+            trail.task = arrow.getScheduler().runAtFixedRate(plugin, scheduled -> {
+                if (!enabled.get() || !trail.active.get() || !arrow.isValid() || arrow.isInBlock()
+                        || trail.ticks++ >= RAIN_LIFETIME_TICKS) {
+                    trails.remove(id, trail);
+                    trail.active.set(false);
+                    scheduled.cancel();
+                    return;
+                }
+                // Independent server packets keep the trail visible for partial draws and
+                // clients that skip an off-screen arrow's local physics/CRIT-particle tick.
+                // The real critical flag and damage are never changed to create this effect.
+                arrow.getWorld().spawnParticle(Particle.CRIT, arrow.getLocation(), 2, 0.02, 0.02, 0.02, 0.0);
+            }, () -> stopTrail(id), 1L, 1L);
+            if (trail.task == null || !enabled.get() || !trail.active.get()) {
+                trails.remove(id, trail);
+                trail.cancel();
+            }
+        } catch (IllegalPluginAccessException ignored) {
+            stopTrail(id); // Disable may race between the spawn callback and task registration.
+        }
+    }
+
+    private void stopTrail(UUID id) {
+        Trail trail = trails.remove(id);
+        if (trail != null) trail.cancel();
+    }
+
     private void removeLater(Entity entity) {
         entity.getScheduler().runDelayed(plugin, task -> removeOwned(entity),
                 () -> rainArrows.remove(entity.getUniqueId()), 1L);
     }
 
     private void removeOwned(Entity entity) {
+        stopTrail(entity.getUniqueId());
         rainArrows.remove(entity.getUniqueId());
         entity.remove();
     }
@@ -180,6 +224,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     @EventHandler
     public void onRemove(EntityRemoveEvent event) {
         UUID id = event.getEntity().getUniqueId();
+        stopTrail(id);
         rainArrows.remove(id);
         Shot shot = sources.get(id);
         if (shot != null && shot.state.flying()) finish(shot);
@@ -196,6 +241,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         sources.remove(shot.sourceId, shot);
         shots.remove(shot);
         shot.cancelTasks();
+        shot.arrows.forEach(arrow -> stopTrail(arrow.getUniqueId()));
         if (plugin.isEnabled()) {
             for (AbstractArrow arrow : shot.arrows) {
                 try {
@@ -213,6 +259,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         shots.forEach(this::finish);
         sources.clear();
         shots.clear();
+        trails.values().forEach(Trail::cancel);
+        trails.clear();
         // onDisable may run after Plugin.isEnabled becomes false. Never fall back to an unsafe
         // global-thread removal; nonpersistent/nonpickup arrows retain their native expiry.
         rainArrows.values().forEach(arrow -> {
@@ -232,19 +280,24 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         final int level;
         final ItemStack firedBow;
         final ItemStack weapon;
+        final ItemStack ammunition;
+        final boolean freeAmmunition;
+        volatile int rainCount;
         final ShotState state = new ShotState();
         final AtomicBoolean rainStarted = new AtomicBoolean();
         final AtomicBoolean launched = new AtomicBoolean();
         final Set<ScheduledTask> tasks = ConcurrentHashMap.newKeySet();
         final Set<AbstractArrow> arrows = ConcurrentHashMap.newKeySet();
 
-        Shot(UUID sourceId, Player player, int level, ItemStack firedBow, ItemStack weapon) {
+        Shot(UUID sourceId, Player player, int level, ItemStack firedBow, ItemStack weapon, ItemStack ammunition, boolean freeAmmunition) {
             this.sourceId = sourceId;
             this.player = player;
             this.playerId = player.getUniqueId();
             this.level = level;
             this.firedBow = firedBow;
             this.weapon = weapon;
+            this.ammunition = ammunition;
+            this.freeAmmunition = freeAmmunition;
         }
 
         void add(ScheduledTask task) {
@@ -259,6 +312,18 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     private record ArrowState(double damage, boolean critical, int fireTicks) {
         static ArrowState capture(AbstractArrow source) {
             return new ArrowState(source.getDamage(), source.isCritical(), source.getFireTicks());
+        }
+    }
+
+    private static final class Trail {
+        final AtomicBoolean active = new AtomicBoolean(true);
+        volatile ScheduledTask task;
+        int ticks; // Accessed only by the arrow's entity scheduler.
+
+        void cancel() {
+            active.set(false);
+            ScheduledTask current = task;
+            if (current != null) current.cancel();
         }
     }
 }

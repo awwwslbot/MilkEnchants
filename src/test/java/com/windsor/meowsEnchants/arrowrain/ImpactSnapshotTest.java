@@ -168,7 +168,8 @@ class ImpactSnapshotTest {
                 } else firstDrop.compareAndSet(null, invocation.getArgument(2));
                 return mock(ScheduledTask.class);
             });
-            listener.trackSource(source, player, bow, level);
+            when(source.getPickupStatus()).thenReturn(AbstractArrow.PickupStatus.CREATIVE_ONLY);
+            listener.trackSource(source, player, bow, level, null);
             ProjectileLaunchEvent launch = mock(ProjectileLaunchEvent.class);
             when(launch.getEntity()).thenReturn(source);
             listener.onLaunch(launch);

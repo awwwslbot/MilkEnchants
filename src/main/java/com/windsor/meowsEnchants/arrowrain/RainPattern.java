@@ -19,14 +19,18 @@ public final class RainPattern {
     public record Drop(double x, double z, long tick) {}
 
     public static List<Drop> drops(int level, RandomGenerator random) {
-        int count = count(level);
+        return drops(level, count(level), random);
+    }
+
+    public static List<Drop> drops(int level, int ammunition, RandomGenerator random) {
+        int count = Math.clamp(ammunition, 0, count(level));
         List<Drop> drops = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             // sqrt produces uniform area density, rather than concentrating arrows at the centre.
             double distance = radius(level) * Math.sqrt(random.nextDouble());
             double angle = random.nextDouble() * Math.TAU;
             drops.add(new Drop(Math.cos(angle) * distance, Math.sin(angle) * distance,
-                    1L + (long) i * (lastSpawnTick(level) - 1) / (count - 1)));
+                    count == 1 ? 1L : 1L + (long) i * (lastSpawnTick(level) - 1) / (count - 1)));
         }
         return List.copyOf(drops);
     }

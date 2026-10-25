@@ -50,6 +50,19 @@ class RainPatternTest {
         assertEquals(0.5, squareRadiusSum/count, 0.01);
     }
 
+    @Test void limitedAmmoHandlesZeroOneAndPartialRainWithoutExceedingItsBudget() {
+        Random random = new Random(70319);
+        for (int level = 1; level <= 3; level++) for (int budget = 0; budget <= 40; budget++) {
+            var drops = RainPattern.drops(level, budget, random);
+            int expected = Math.min(budget, RainPattern.count(level));
+            assertEquals(expected, drops.size());
+            if (expected == 0) continue;
+            assertEquals(1, drops.getFirst().tick());
+            assertEquals(expected == 1 ? 1 : level * 20, drops.getLast().tick());
+            for (var drop : drops) assertTrue(Math.hypot(drop.x(), drop.z()) <= RainPattern.radius(level));
+        }
+    }
+
     @Test void unsafeOverlevelsCannotExceedRequestedCaps() {
         assertEquals(32, RainPattern.count(Integer.MAX_VALUE));
         assertEquals(3.5, RainPattern.radius(4));
