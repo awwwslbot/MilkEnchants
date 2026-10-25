@@ -25,11 +25,11 @@ class ArrowRainConfigTest {
         assertEquals("server-other: keep-exactly\n", Files.readString(other));
     }
 
-    @Test void freshConfigUsesBowThreeLevelsAndExistingAcquisitionPolicy() throws Exception {
+    @Test void freshConfigUsesBowFiveLevelsAndExistingAcquisitionPolicy() throws Exception {
         ArrowRainConfig.installMissing(directory);
         try (var input = Files.newInputStream(directory.resolve("arrow_rain.yml"))) {
             Map<String, Object> config = new Yaml().load(input);
-            assertEquals(3, config.get("max_level"));
+            assertEquals(5, config.get("max_level"));
             assertEquals("BOW", config.get("applicable_items"));
             assertEquals("landing_arrow_rain_v1", config.get("mechanic"));
             assertEquals(Map.of(), config.get("actions"));
@@ -48,7 +48,7 @@ class ArrowRainConfigTest {
         assertEquals(1, loaded.size());
         var config = loaded.get(Key.key("meowsenchants", "arrow_rain"));
         assertNotNull(config);
-        assertEquals(3, config.getMaxLevel());
+        assertEquals(5, config.getMaxLevel());
         assertEquals("BOW", config.getApplicableItem());
         assertTrue(config.getActions().isEmpty());
         assertEquals(0, config.getCooldown());

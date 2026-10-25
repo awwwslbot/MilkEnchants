@@ -119,15 +119,19 @@ class ImpactSnapshotTest {
         }
     }
 
-    @Test void finalLevelThreeDropHasTimeToFallBeforeShotCompletion() {
-        Fixture f = new Fixture(3);
-        try (var bukkit = mockStatic(Bukkit.class)) {
-            bukkit.when(Bukkit::getRegionScheduler).thenReturn(f.regions);
-            f.listener.onHit(f.hit);
+    @Test void finalDropOfEveryLevelHasTimeToFallBeforeShotCompletion() {
+        for (int level : new int[]{3, RainPattern.MAX_LEVEL}) {
+            Fixture f = new Fixture(level);
+            try (var bukkit = mockStatic(Bukkit.class)) {
+                bukkit.when(Bukkit::getRegionScheduler).thenReturn(f.regions);
+                f.listener.onHit(f.hit);
+            }
+            long minimumCompletionTick = RainPattern.lastSpawnTick(level)
+                    + (long) Math.ceil(20.0 / RainPattern.SPEED) + 1;
+            assertTrue(f.completionTick.get() >= minimumCompletionTick,
+                    "Shot completion must not cancel/remove the final drops released at tick "
+                            + RainPattern.lastSpawnTick(level));
         }
-        long minimumCompletionTick = 60 + (long) Math.ceil(20.0 / RainPattern.SPEED) + 1;
-        assertTrue(f.completionTick.get() >= minimumCompletionTick,
-                "Shot completion must not cancel/remove the final drops released at tick 60");
     }
 
     private static final class Fixture {

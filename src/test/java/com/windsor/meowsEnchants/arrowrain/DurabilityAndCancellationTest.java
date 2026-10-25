@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 class DurabilityAndCancellationTest {
     @Test void chargesOnlyExtraNativeDurabilityOnExactFiredBow() {
-        for (int level = 1; level <= 3; level++) {
+        for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
             Player player = mock(Player.class);
             when(player.getGameMode()).thenReturn(GameMode.SURVIVAL);
             ItemStack actualFiredBow = mock(ItemStack.class);

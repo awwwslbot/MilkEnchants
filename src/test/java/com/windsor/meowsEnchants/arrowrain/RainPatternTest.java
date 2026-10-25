@@ -6,9 +6,9 @@ import org.junit.jupiter.api.Test;
 
 class RainPatternTest {
     @Test void exactDiametersCountsAndTotalDurability() {
-        assertArrayEquals(new double[]{3, 5, 7}, new double[]{RainPattern.radius(1)*2, RainPattern.radius(2)*2, RainPattern.radius(3)*2});
-        assertArrayEquals(new int[]{8, 16, 32}, new int[]{RainPattern.count(1), RainPattern.count(2), RainPattern.count(3)});
-        assertArrayEquals(new int[]{4, 8, 16}, new int[]{RainPattern.extraDurability(1)+1, RainPattern.extraDurability(2)+1, RainPattern.extraDurability(3)+1});
+        assertArrayEquals(new double[]{3, 5, 7, 9, 11}, new double[]{RainPattern.radius(1)*2, RainPattern.radius(2)*2, RainPattern.radius(3)*2, RainPattern.radius(4)*2, RainPattern.radius(5)*2});
+        assertArrayEquals(new int[]{8, 16, 32, 64, 128}, new int[]{RainPattern.count(1), RainPattern.count(2), RainPattern.count(3), RainPattern.count(4), RainPattern.count(5)});
+        assertArrayEquals(new int[]{4, 8, 16, 32, 64}, new int[]{RainPattern.extraDurability(1)+1, RainPattern.extraDurability(2)+1, RainPattern.extraDurability(3)+1, RainPattern.extraDurability(4)+1, RainPattern.extraDurability(5)+1});
     }
 
     @Test void releaseStartsTwentyBlocksAboveTheImpactPoint() {
@@ -17,7 +17,7 @@ class RainPatternTest {
 
     @Test void everyArrowStaysInDiskAndIsReleasedEvenlyWithinItsLevelWindow() {
         Random random = new Random(624798);
-        for (int level = 1; level <= 3; level++) {
+        for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
             for (int repetition = 0; repetition < 500; repetition++) {
                 var drops = RainPattern.drops(level, random);
                 assertEquals(RainPattern.count(level), drops.size());
@@ -52,7 +52,7 @@ class RainPatternTest {
 
     @Test void limitedAmmoHandlesZeroOneAndPartialRainWithoutExceedingItsBudget() {
         Random random = new Random(70319);
-        for (int level = 1; level <= 3; level++) for (int budget = 0; budget <= 40; budget++) {
+        for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) for (int budget = 0; budget <= RainPattern.count(level); budget++) {
             var drops = RainPattern.drops(level, budget, random);
             int expected = Math.min(budget, RainPattern.count(level));
             assertEquals(expected, drops.size());
@@ -64,9 +64,10 @@ class RainPatternTest {
     }
 
     @Test void unsafeOverlevelsCannotExceedRequestedCaps() {
-        assertEquals(32, RainPattern.count(Integer.MAX_VALUE));
-        assertEquals(3.5, RainPattern.radius(4));
-        assertEquals(15, RainPattern.extraDurability(100));
-        assertEquals(60, RainPattern.lastSpawnTick(Integer.MAX_VALUE));
+        assertEquals(128, RainPattern.count(Integer.MAX_VALUE));
+        assertEquals(4.5, RainPattern.radius(4));
+        assertEquals(5.5, RainPattern.radius(Integer.MAX_VALUE));
+        assertEquals(63, RainPattern.extraDurability(100));
+        assertEquals(100, RainPattern.lastSpawnTick(Integer.MAX_VALUE));
     }
 }

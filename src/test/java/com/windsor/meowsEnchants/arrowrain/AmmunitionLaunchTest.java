@@ -26,12 +26,13 @@ import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.Test;
 
 class AmmunitionLaunchTest {
-    @Test void successfulLaunchPaysExtraEightSixteenOrThirtyTwoOnce() {
-        for (int level = 1; level <= 3; level++) {
-            Fixture f = new Fixture(level, 63, false);
+    @Test void successfulLaunchPaysExtraRainArrowsOnceForEveryLevel() {
+        int initial = RainPattern.count(RainPattern.MAX_LEVEL) + 1;
+        for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
+            Fixture f = new Fixture(level, initial, false);
             f.listener.onLaunch(f.launch);
             f.listener.onLaunch(f.launch);
-            assertEquals(64 - 1 - RainPattern.count(level), f.amount(9));
+            assertEquals(initial - RainPattern.count(level), f.amount(9));
             assertEquals(RainPattern.count(level), f.captureRainCount());
         }
     }
@@ -56,12 +57,15 @@ class AmmunitionLaunchTest {
     }
 
     @Test void nativeFreeShotAndCreativeDoNotConsumeExtraAmmunition() {
+        int initial = RainPattern.count(RainPattern.MAX_LEVEL) + 1;
         for (boolean creative : new boolean[]{false, true}) {
-            Fixture f = new Fixture(3, 63, !creative);
-            if (creative) when(f.player.getGameMode()).thenReturn(GameMode.CREATIVE);
-            f.listener.onLaunch(f.launch);
-            assertEquals(63, f.amount(9));
-            assertEquals(32, f.captureRainCount());
+            for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
+                Fixture f = new Fixture(level, initial, !creative);
+                if (creative) when(f.player.getGameMode()).thenReturn(GameMode.CREATIVE);
+                f.listener.onLaunch(f.launch);
+                assertEquals(initial, f.amount(9));
+                assertEquals(RainPattern.count(level), f.captureRainCount());
+            }
         }
     }
 
