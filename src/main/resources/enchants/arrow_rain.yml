@@ -1,15 +1,12 @@
 name: "<gradient:#CFCFCF:#00D4FF>箭雨"
-
-# 附魔描述，显示在附魔查询页面的lore中，同时支持Bukkit颜色代码和MiniMessage格式标签
-# Enchantment description shown in the enchant browser lore. Supports Bukkit color codes and MiniMessage tags.
 description:
-  - "&f向目标连续发射多支箭"
-  - "&b冷却：2秒"
-  - "&7可用于：&e弓、十字弩"
-  - "&d未超载最高等级：5"
-  - "&7提升等级时："
-  - "&a提高箭矢数量，减少散布"
-max_level: 5
+  - "&f原始箭矢首次命中后，从天降下箭雨"
+  - "&7一级：直径3格，最多8箭，总耐久消耗4倍"
+  - "&7二级：直径5格，最多16箭，总耐久消耗8倍"
+  - "&7三级：直径7格，最多32箭，总耐久消耗16倍"
+  - "&b箭雨约1秒内落下，不额外消耗箭矢且不可回收"
+  - "&7可用于：&e弓"
+max_level: 3
 anvil_cost: 2
 enchanting_table:
   enabled: true
@@ -20,22 +17,10 @@ villager_trades:
   enabled: false
   chance: 0.01
   treasure: true
-applicable_items: RANGED
+applicable_items: BOW
 trigger: BOW_SHOOT
 target: SELF
-cooldown: 2000
-particle:
-  type: SNOWFLAKE                  # 雪花粒子，表现冰霜质感
-  count: 40                       # 数量适中，形成拖尾
-  spread: 0.5                      # 较小的扩散，让粒子更集中
-  speed: 0.01                      # 较低速度，模拟冰晶飘散
-  location: TARGET                   # 在玩家位置生成
-actions:
-  volley:
-    type: multi_arrow
-    extra_arrows:
-      base: 2
-      per_level: 2
-    spread:
-      base: 15
-      per_level: -2
+cooldown: 0
+# Dedicated shot/impact lifecycle; an empty action map prevents legacy multi_arrow double firing.
+mechanic: landing_arrow_rain_v1
+actions: {}

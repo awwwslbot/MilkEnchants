@@ -1,6 +1,8 @@
 package com.windsor.meowsEnchants;
 
 import com.windsor.meowsEnchants.actions.impl.TillAction;
+import com.windsor.meowsEnchants.arrowrain.ArrowRainConfig;
+import com.windsor.meowsEnchants.arrowrain.ArrowRainListener;
 import com.windsor.meowsEnchants.commands.EnchantsCommand;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
@@ -41,6 +43,7 @@ public class MeowsEnchants extends JavaPlugin {
     private static boolean enchantingTableBalanceBooks;
 
     private EnchantBrowser enchantBrowser;
+    private ArrowRainListener arrowRain;
 
     public static MeowsEnchants getInstance() {
         return instance;
@@ -93,6 +96,10 @@ public class MeowsEnchants extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockDropItemListener(), this);
         getServer().getPluginManager().registerEvents(new AutoBowListener(), this);
         getServer().getPluginManager().registerEvents(new DrawAccelerateListener(), this);
+        arrowRain = ArrowRainConfig.createListener(this);
+        if (arrowRain != null) {
+            getServer().getPluginManager().registerEvents(arrowRain, this);
+        }
 
         enchantBrowser = new EnchantBrowser(this);
         getServer().getPluginManager().registerEvents(enchantBrowser, this);
@@ -105,6 +112,10 @@ public class MeowsEnchants extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (arrowRain != null) {
+            arrowRain.close();
+            arrowRain = null;
+        }
         PassiveTaskManager.stopAll();
         AutoBowManager.stopAll();
         DrawAccelerateManager.stopAll();
