@@ -16,7 +16,7 @@
 ## 配置分发
 
 - 插件只在 `plugins/MeowsEnchants/enchants/` 不存在时释放全部内置 yml。已有服务器既拿不到新附魔的 yml，也不会更新旧 yml。新增附魔时，要么像箭雨那样在 `MeowsEnchantsBootstrap` 里只补缺失的文件（`ArrowRainConfig.installMissing`），要么部署时手动放入 yml；修改已有附魔的配置时，把线上迁移步骤写进该附魔的文档。
-- 附魔在 bootstrap 阶段注册：换 jar 或改动 `max_level` 等注册相关配置后，完整重启服务器。
+- 附魔在 bootstrap 阶段注册：换 jar 或改动 `max_level` 等注册相关配置后，完整重启服务器。插件也不支持热禁用后再启用（PlugManX reload 同样不行）：`onEnable` 里注册 `/enchants` 命令会被 Paper 拒绝，插件随即又被禁用，只能完整重启。
 
 ## Folia
 
@@ -33,7 +33,7 @@ JAVA_HOME=/usr/lib/jvm/zulu-25 mvn -B clean verify
 
 ## 本地测试服
 
-本地 Folia 测试服在仓库外：`/home/swim/code/ProjectMilkRepo/_arrowrain/runtime/`（下称 `$RT`），为箭雨建立，所有附魔都在这里测。世界 `arrowrain-test`，离线模式，仅监听 `127.0.0.1:25576`，在 tmux 会话 `milk-arrowrain` 中运行 `run-local.sh`（Java 25）。插件目录里的 `ArrowRainQA.jar` 是箭雨的测试观察插件，只用于本地。
+本地 Folia 测试服在仓库外：`/home/swim/code/ProjectMilkRepo/_arrowrain/runtime/`（下称 `$RT`），为箭雨建立，所有附魔都在这里测。世界 `arrowrain-test`，离线模式，仅监听 `127.0.0.1:25576`，在 tmux 会话 `milk-arrowrain` 中运行 `run-local.sh`（Java 25）。插件目录里的 `ArrowRainQA.jar`、`TrackingQA.jar` 分别是箭雨和跟踪的测试观察插件，只用于本地。为跟踪另装了 Residence 6.0.3.3 + CMILib 1.5.9.9（不含生产领地数据）和 Worlds 4.4.0（`milk:pvp` 世界），并开了只监听本机的 RCON（端口 25617），详见 `docs/enchants/tracking.md`。
 
 - 用户会亲自在这台服里体验验收：停服、重启、换 jar 之前先告诉用户。
 - 换 jar 流程：

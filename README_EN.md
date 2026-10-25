@@ -22,6 +22,7 @@ Compared with common NBT- or lore-based custom enchantment plugins, this plugin 
 - Java: `25`
 - Plugin type: Paper plugin using the `bootstrapper` field in `paper-plugin.yml`
 - Folia: full support
+- Optional dependency: Residence (the tracking enchantment skips targets the shooter may not hurt inside a claim; skipped when Residence is absent)
 
 | Server / Version                               | Compatibility  | Result                                                                                                           |
 |------------------------------------------------|----------------|------------------------------------------------------------------------------------------------------------------|
@@ -129,7 +130,7 @@ description:
 
 ## 5. Building
 
-Parameters, config migration and verification notes for Milk custom enchantments live per enchantment in [docs/enchants/](docs/enchants/) (in Chinese), e.g. arrow rain in [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md).
+Parameters, config migration and verification notes for Milk custom enchantments live per enchantment in [docs/enchants/](docs/enchants/) (in Chinese), e.g. arrow rain in [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md) and tracking (arrows and crossbow fireworks steer towards nearby targets, optionally respecting Residence claims) in [docs/enchants/tracking.md](docs/enchants/tracking.md).
 
 This project uses Maven. Dependencies are resolved from the PaperMC Maven repository and the PlaceholderAPI repository.  
 The project currently uses Java `25`. Before building, make sure your local JDK matches the Java version used by Maven.
@@ -143,7 +144,7 @@ mvn clean package
 Build output:
 
 ```text
-target/meowsenchants-0.2-milk.11.jar
+target/meowsenchants-0.2-milk.12.jar
 ```
 
 ## License

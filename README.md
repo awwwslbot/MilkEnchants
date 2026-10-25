@@ -22,6 +22,7 @@ MeowsEnchants 让自定义附魔像原版附魔一样注册到服务端中，而
 - Java：`25`
 - 插件类型：Paper plugin，使用 `paper-plugin.yml` 的 `bootstrapper`
 - Folia：`全功能支持`
+- 可选依赖：Residence（跟踪附魔跳过射手在领地内无权伤害的目标；未安装时跳过这项判断）
 
 
 | 服务端 / 版本                      | 兼容性  | 结论                                                             |
@@ -131,7 +132,7 @@ description:
 
 ## 5. 项目构建方法
 
-Milk 定制附魔的参数、配置迁移和验证说明按附魔放在 [docs/enchants/](docs/enchants/)，例如箭雨见 [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md)。
+Milk 定制附魔的参数、配置迁移和验证说明按附魔放在 [docs/enchants/](docs/enchants/)，例如箭雨见 [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md)，跟踪（弓弩射出的箭和烟花自动拐向目标，可选配合 Residence）见 [docs/enchants/tracking.md](docs/enchants/tracking.md)。
 
 项目使用 Maven 构建，依赖从 PaperMC Maven 仓库和 PlaceholderAPI 仓库解析。  
 本项目 Java 版本为 `25`。构建前请确认本机 JDK 与 Maven 使用的 Java 版本匹配。  
@@ -145,5 +146,5 @@ mvn clean package
 构建产物位于：
 
 ```text
-target/meowsenchants-0.2-milk.11.jar
+target/meowsenchants-0.2-milk.12.jar
 ```
