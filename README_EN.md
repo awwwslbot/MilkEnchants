@@ -129,6 +129,8 @@ description:
 
 ## 5. Building
 
+Parameters, config migration and verification notes for Milk custom enchantments live per enchantment in [docs/enchants/](docs/enchants/) (in Chinese), e.g. arrow rain in [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md).
+
 This project uses Maven. Dependencies are resolved from the PaperMC Maven repository and the PlaceholderAPI repository.  
 The project currently uses Java `25`. Before building, make sure your local JDK matches the Java version used by Maven.
 

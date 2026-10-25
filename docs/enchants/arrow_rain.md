@@ -32,7 +32,7 @@
 
 每支有效雨箭在其实体调度器上每 tick 发送 2 个少量散布的服务端 `CRIT` 粒子，位置取自箭自身；首次命中、移除、离线或关闭时停止，最多运行 30 tick。粒子不依赖 `isCritical`，不会为了显示轨迹把非暴击箭改成暴击，也不改变真实伤害、速度或碰撞。
 
-普通地面命中的雨箭从生成至清除约 30 tick，即正常 20 TPS 下约 1.5 秒；下落约 0.4 秒后短暂停留在地面，停留期间不可拾取且不继续刷粒子。原生寿命不再预设为即将过期。实体命中仍遵循原生销毁/伤害逻辑；若原生未销毁而发生反弹，会在下一实体 tick 前清理，避免二次伤害，不复活已命中的箭。因此实体命中或保护插件提前移除的箭不承诺存满 1.5 秒。
+普通地面命中的雨箭从生成至清除约 30 tick，即正常 20 TPS 下约 1.5 秒；下落约 0.4 秒后短暂停留在地面，停留期间不可拾取且不继续刷粒子。雨箭生成时用 `setLifetimeTicks(0)` 把原生寿命归零，由插件按生成后 `RAIN_LIFETIME_TICKS`（30 tick）清理；旧版沿用的原生 `life=1199` 会让落地箭立即过期，调整显示时长时改插件期限并保持寿命归零。实体命中仍遵循原生销毁/伤害逻辑；若原生未销毁而发生反弹，会在下一实体 tick 前清理，避免二次伤害，不复活已命中的箭。因此实体命中或保护插件提前移除的箭不承诺存满 1.5 秒。
 
 旧版轨迹依赖客户端原生暴击粒子：未满蓄力箭没有该粒子；EntityCulling 的 `tickCulling` 也可能跳过视锥外箭的整个本地 tick，使物理与原生粒子一起停下，而服务端命中声仍正常播放。独立服务端粒子让轨迹不再依赖这条本地 tick 路径。若客户端箭模型仍被该优化冻结，可把 `minecraft:arrow` 加入 EntityCulling 的 tick 白名单或关闭 tick culling；客户端的极简粒子设置仍可能隐藏部分效果。
 
@@ -67,3 +67,12 @@ JAVA_HOME=/usr/lib/jvm/zulu-25 mvn -B clean verify
 真实服务端还需验证：各等级有/无无限、Unbreaking III、即将损坏的弓、副手射击、射出后换槽、射击/发射事件取消、方块/实体命中、重复/穿透命中、原箭移除、离线及关闭插件。跨区域测试需包括远处射手和区域边界。实际 Unbreaking 随机分布、原版弹药消耗与事件执行顺序不能由 mock 单元测试独立证明。
 
 本次源码基线为 MilkEnchants `c2cfd1ac1cdd65684379b562f621045a5b71f236`（`0.2-milk.7`）。在修改前用原 Maven 配置构建，对运行中的 milk.7 JAR 的 81 个类逐一比较规范化 `javap -c -p -constants` 输出，全部一致；定制的自动弓、快拉弓、熵等实现继续使用该仓库源码。
+
+## 本地测试与证据
+
+测试资料在仓库外的 `/home/swim/code/ProjectMilkRepo/_arrowrain/`，以下路径相对于该目录；测试服本身的操作见仓库根目录 `AGENTS.md`。
+
+- 自动回归：在 `/home/swim/code/ProjectMilkRepo` 下运行 `node _arrowrain/test-client/milk10-suite.cjs`，用 `ARQA_CASES=level1,level4,...` 缩小场景。套件依赖测试服已加载的观察插件 `ArrowRainQA.jar`（源码 `test-harness/src/ArrowRainQA.java`），会重设离线玩家 `RainQA` 的装备和位置，同一时间只能有一个 `RainQA` 在线。结果写入 `evidence/runtime/`（汇总 `milk10-suite.json`）并覆盖旧记录，运行前先备份该目录。
+- 运行时断言区分飞行态与落地态：原版 `onHitBlock` 落地时同时设置 inGround 并清除 `critical`，暴击断言只核对生成时的状态。
+- 真实客户端画面：`test-client/capture-native.py` 需要 Xvfb `DISPLAY=:99` 和已用 `RainQA` 进服的隔离客户端，隔离客户端在 `render-client/`（原版）与 `render-client-culling/`（Fabric + EntityCulling）。
+- 历史证据：冻结的发布 jar 在 `releases/milk.N/`；各轮 QA 报告 `evidence/qa-review*.md`、原始运行数据和录像在 `evidence/`；看不清箭雨的根因调查在 `evidence/qa-visibility/investigation.md`。`upstream/` 是上游 tag `0.2` 的克隆，仅作参考；`dev/` 是废弃的早期实验。
