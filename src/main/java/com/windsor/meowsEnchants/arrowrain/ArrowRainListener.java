@@ -43,8 +43,21 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     private final Set<Shot> shots = ConcurrentHashMap.newKeySet();
     private final Map<UUID, AbstractArrow> rainArrows = new ConcurrentHashMap<>();
     private final Map<UUID, Trail> trails = new ConcurrentHashMap<>();
+    private volatile RainObserver rainObserver;
 
     ArrowRainListener(Plugin plugin) { this.plugin = plugin; }
+
+    /** Rain arrows fire no shoot event; another mechanic (tracking) can take them over here. */
+    public interface RainObserver {
+        /**
+         * Called on the rain arrow's region thread right after it spawns. weapon and shotLocation are
+         * the bow and shooter position captured at the shot that started this rain (the shooter may
+         * have moved or fired again since); stopTrail ends this arrow's CRIT trail.
+         */
+        void rainSpawned(Arrow arrow, Player shooter, ItemStack weapon, Location shotLocation, Runnable stopTrail);
+    }
+
+    public void setRainObserver(RainObserver observer) { this.rainObserver = observer; }
 
     public static boolean isRain(Entity entity) {
         return entity.getPersistentDataContainer().has(GENERATED, PersistentDataType.BYTE);
@@ -173,6 +186,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         // This uses the entity scheduler so cleanup follows arrows across region boundaries.
         arrow.getScheduler().runDelayed(plugin, task -> removeOwned(arrow),
                 () -> rainArrows.remove(arrow.getUniqueId()), RAIN_LIFETIME_TICKS);
+        RainObserver observer = rainObserver;
+        if (observer != null) observer.rainSpawned(arrow, shot.player, shot.weapon, shot.shotLocation, () -> stopTrail(arrow.getUniqueId()));
         if (!active(shot)) removeOwned(arrow); // Covers a quit/disable racing the spawn callback.
     }
 
@@ -282,6 +297,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         final ItemStack weapon;
         final ItemStack ammunition;
         final boolean freeAmmunition;
+        /** Read in the shoot event, on the shooter's own region thread. */
+        final Location shotLocation;
         volatile int rainCount;
         final ShotState state = new ShotState();
         final AtomicBoolean rainStarted = new AtomicBoolean();
@@ -298,6 +315,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
             this.weapon = weapon;
             this.ammunition = ammunition;
             this.freeAmmunition = freeAmmunition;
+            this.shotLocation = player.getLocation();
         }
 
         void add(ScheduledTask task) {
