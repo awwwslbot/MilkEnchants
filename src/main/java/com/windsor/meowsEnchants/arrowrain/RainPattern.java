@@ -14,7 +14,7 @@ public final class RainPattern {
     public static int level(int level) { return Math.clamp(level, 1, MAX_LEVEL); }
     public static int count(int level) { return 8 << (level(level) - 1); }
     public static double radius(int level) { return level(level) + 0.5; }
-    public static int extraDurability(int level) { return (4 << (level(level) - 1)) - 1; }
+    public static int extraDurability(int level) { return (2 << (level(level) - 1)) - 1; }
     public static int lastSpawnTick(int level) { return 20 * level(level); }
 
     public record Drop(double x, double z, long tick) {}

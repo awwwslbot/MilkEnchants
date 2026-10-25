@@ -41,7 +41,7 @@ class AmmunitionLaunchTest {
         Fixture f = new Fixture(3, 3, false);
         f.listener.onLaunch(f.launch);
         assertEquals(0, f.amount(9));
-        verify(f.bow).damage(15, f.player);
+        verify(f.bow).damage(7, f.player);
         f.slots.put(9, f.stack(Material.ARROW, 64, "normal"));
         clearInvocations(f.inventory);
         assertEquals(3, f.captureRainCount());
@@ -53,7 +53,7 @@ class AmmunitionLaunchTest {
         Fixture f = new Fixture(1, 0, false);
         f.listener.onLaunch(f.launch);
         assertEquals(0, f.captureRainCount());
-        verify(f.bow).damage(3, f.player);
+        verify(f.bow).damage(1, f.player);
     }
 
     @Test void nativeFreeShotAndCreativeDoNotConsumeExtraAmmunition() {
