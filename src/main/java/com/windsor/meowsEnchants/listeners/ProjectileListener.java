@@ -1,6 +1,7 @@
 package com.windsor.meowsEnchants.listeners;
 
 import com.windsor.meowsEnchants.MeowsEnchants;
+import com.windsor.meowsEnchants.arrowrain.ArrowRainListener;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -46,6 +47,7 @@ public class ProjectileListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onProjectileHit(ProjectileHitEvent event) {
         if (event.isCancelled()) return;
+        if (ArrowRainListener.isRain(event.getEntity())) return;
         if (!(event.getEntity().getShooter() instanceof Player player)) return;
         EnchantTriggerHelper.checkAndTrigger(player, "PROJECTILE_HIT",
                 EnchantTriggerHelper.getSlotsForTrigger(player),

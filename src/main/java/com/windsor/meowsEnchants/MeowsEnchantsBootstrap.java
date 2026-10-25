@@ -1,6 +1,7 @@
 package com.windsor.meowsEnchants;
 
 import com.windsor.meowsEnchants.config.EnchantConfig;
+import com.windsor.meowsEnchants.arrowrain.ArrowRainConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
@@ -44,6 +45,12 @@ public class MeowsEnchantsBootstrap implements PluginBootstrap {
                 logger.warn("Unable to create enchants directory: " + dir);
                 return;
             }
+        }
+
+        try {
+            ArrowRainConfig.installMissing(dir);
+        } catch (IOException e) {
+            logger.warn("Failed to install missing arrow rain config: " + e.getMessage());
         }
 
         Map<Key, EnchantConfig> configMap = EnchantConfigLoader.loadAll(dir, logger);

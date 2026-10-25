@@ -131,6 +131,8 @@ description:
 
 ## 5. 项目构建方法
 
+Milk 定制附魔的参数、配置迁移和验证说明按附魔放在 [docs/enchants/](docs/enchants/)，例如箭雨见 [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md)。
+
 项目使用 Maven 构建，依赖从 PaperMC Maven 仓库和 PlaceholderAPI 仓库解析。  
 本项目 Java 版本为 `25`。构建前请确认本机 JDK 与 Maven 使用的 Java 版本匹配。  
 
@@ -143,5 +145,5 @@ mvn clean package
 构建产物位于：
 
 ```text
-target/meowsenchants-0.2-milk.7.jar
+target/meowsenchants-0.2-milk.11.jar
 ```
