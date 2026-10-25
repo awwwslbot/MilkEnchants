@@ -22,8 +22,8 @@ class RainPatternTest {
                 for (var drop : drops) {
                     assertTrue(Math.hypot(drop.x(), drop.z()) <= RainPattern.radius(level));
                     assertTrue(drop.tick() >= 1 && drop.tick() <= 10);
-                    // One extra tick for collision reconstruction, three for the six-block fall.
-                    assertTrue(1 + drop.tick() + Math.ceil(RainPattern.HEIGHT / RainPattern.SPEED) <= 20);
+                    // Three ticks for the six-block fall after the scheduled spawn.
+                    assertTrue(drop.tick() + Math.ceil(RainPattern.HEIGHT / RainPattern.SPEED) <= 20);
                 }
             }
         }

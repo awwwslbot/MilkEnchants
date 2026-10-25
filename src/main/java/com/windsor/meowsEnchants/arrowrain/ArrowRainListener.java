@@ -8,12 +8,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.bukkit.Bukkit;
-import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.block.Block;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
@@ -31,7 +29,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 /** Captures the actual fired bow once; impact never consults the shooter's current equipment. */
@@ -58,8 +55,11 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         int level = enchantLevel(bow);
         if (level == 0) return;
 
-        Shot shot = new Shot(source.getUniqueId(), player, level, bow,
-                bow.clone(), source.getDamage(), source.isCritical(), source.getFireTicks());
+        trackSource(source, player, bow, level);
+    }
+
+    void trackSource(AbstractArrow source, Player player, ItemStack bow, int level) {
+        Shot shot = new Shot(source.getUniqueId(), player, level, bow, bow.clone());
         Shot previous = sources.putIfAbsent(shot.sourceId, shot);
         if (previous != null) return;
         shots.add(shot);
@@ -108,52 +108,29 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         if (shot == null || !shot.launched.get() || !shot.state.impact()) return;
         sources.remove(shot.sourceId, shot);
         shot.cancelTasks(); // Source expiry/removal must not cancel an already triggered rain.
-        Location from = event.getEntity().getLocation().clone();
-        Vector velocity = event.getEntity().getVelocity().clone();
-        double distance = Math.max(velocity.length() + 1.0, 1.0);
-        Vector direction = velocity.lengthSquared() > 1.0e-10 ? velocity.clone().normalize() : new Vector(0, -1, 0);
-        Block block = event.getHitBlock();
-        Entity target = event.getHitEntity();
-        // The Bukkit event has no hit vector. Reconstruct it against the actual collision shape
-        // on the block/entity's owner thread; do not read a remote entity's location or box.
-        if (block != null) {
-            shot.add(Bukkit.getRegionScheduler().run(plugin, block.getWorld(), block.getX() >> 4, block.getZ() >> 4,
-                    task -> {
-                        if (!active(shot)) return;
-                        RayTraceResult trace = block.rayTrace(from, direction, distance, FluidCollisionMode.NEVER);
-                        startRain(shot, position(from, trace));
-                    }));
-        } else if (target != null) {
-            ScheduledTask task = target.getScheduler().run(plugin, scheduled -> {
-                if (!active(shot)) return;
-                startRain(shot, position(from, target.getBoundingBox().rayTrace(from.toVector(), direction, distance)));
-            }, () -> startRain(shot, from));
-            shot.add(task);
-            if (task == null) startRain(shot, from);
-        } else {
-            startRain(shot, from);
-        }
+        // In the supported Folia 26.1.2 server, AbstractArrow.stepMoveAndHit sets its position
+        // to HitResult.location before firing this event. Keep that exact first impact point;
+        // a later target ray trace can select another surface after the target has moved.
+        Location centre = event.getEntity().getLocation().clone();
+        // PROJECTILE_SPAWNED (including Flame) runs after shoot/launch event observers. Read
+        // the original arrow here on its owner thread, and pass immutable values to all drops.
+        ArrowState state = ArrowState.capture((AbstractArrow) event.getEntity());
+        startRain(shot, centre, state);
     }
 
-    private static Location position(Location from, RayTraceResult trace) {
-        if (trace == null) return from;
-        Vector point = trace.getHitPosition();
-        return new Location(from.getWorld(), point.getX(), point.getY(), point.getZ());
-    }
-
-    private void startRain(Shot shot, Location centre) {
+    private void startRain(Shot shot, Location centre, ArrowState state) {
         if (!active(shot) || !shot.rainStarted.compareAndSet(false, true)) return;
         for (RainPattern.Drop drop : RainPattern.drops(shot.level, ThreadLocalRandom.current())) {
             Location spawn = centre.clone().add(drop.x(), RainPattern.HEIGHT, drop.z());
             if (spawn.getY() >= spawn.getWorld().getMaxHeight()
                     || spawn.getY() < spawn.getWorld().getMinHeight()) continue;
-            shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, spawn, task -> spawnRain(shot, spawn), drop.tick()));
+            shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, spawn, task -> spawnRain(shot, spawn, state), drop.tick()));
         }
         // One region-owned completion task bounds retained shot state even if every drop is skipped.
         shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, centre, task -> finish(shot), 60L));
     }
 
-    private void spawnRain(Shot shot, Location location) {
+    private void spawnRain(Shot shot, Location location, ArrowState state) {
         if (!active(shot)) return;
         // Do not load/generate an unvisited chunk, or create arrows inside solid ceilings.
         if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)
@@ -163,9 +140,9 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
             // resetPickupStatus=false only copies owner identity; it never reads live shooter state.
             rain.setShooter(shot.player, false);
             rain.setWeapon(shot.weapon.clone());
-            rain.setDamage(shot.damage);
-            rain.setCritical(shot.critical);
-            rain.setFireTicks(shot.fireTicks);
+            rain.setDamage(state.damage());
+            rain.setCritical(state.critical());
+            rain.setFireTicks(state.fireTicks());
             rain.setPierceLevel(0);
             rain.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
             rain.setPersistent(false);
@@ -249,25 +226,19 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         final int level;
         final ItemStack firedBow;
         final ItemStack weapon;
-        final double damage;
-        final boolean critical;
-        final int fireTicks;
         final ShotState state = new ShotState();
         final AtomicBoolean rainStarted = new AtomicBoolean();
         final AtomicBoolean launched = new AtomicBoolean();
         final Set<ScheduledTask> tasks = ConcurrentHashMap.newKeySet();
         final Set<AbstractArrow> arrows = ConcurrentHashMap.newKeySet();
 
-        Shot(UUID sourceId, Player player, int level, ItemStack firedBow, ItemStack weapon, double damage, boolean critical, int fireTicks) {
+        Shot(UUID sourceId, Player player, int level, ItemStack firedBow, ItemStack weapon) {
             this.sourceId = sourceId;
             this.player = player;
             this.playerId = player.getUniqueId();
             this.level = level;
             this.firedBow = firedBow;
             this.weapon = weapon;
-            this.damage = damage;
-            this.critical = critical;
-            this.fireTicks = fireTicks;
         }
 
         void add(ScheduledTask task) {
@@ -277,5 +248,11 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         }
 
         void cancelTasks() { tasks.forEach(ScheduledTask::cancel); tasks.clear(); }
+    }
+
+    private record ArrowState(double damage, boolean critical, int fireTicks) {
+        static ArrowState capture(AbstractArrow source) {
+            return new ArrowState(source.getDamage(), source.isCritical(), source.getFireTicks());
+        }
     }
 }
