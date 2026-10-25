@@ -518,7 +518,7 @@ actions:
 | 参数 | 类型 | 必须 | 默认值 | 描述 |
 | --- | --- | --- | --- | --- |
 | `radius` | ScalingFunction | 是 | -- | 作用半径，0 = 只处理点击的方块 |
-| `transforms` | map | 否 | -- | 源方块 → 目标方块；键支持 `#minecraft:dirt` 形式的方块标签 |
+| `transforms` | map | 否 | -- | 源方块规格 → 目标方块规格，见下方 DSL |
 | `inherit_defaults` | boolean | 否 | `true` | 是否在原版耕地表（泥土/草方块/灰化土/菌丝→耕地，砂土/缠根泥土→泥土）基础上叠加 |
 | `require_item_types` | list | 否 | -- | 允许触发的物品材质，如 `[IRON_HOE, DIAMOND_HOE]` |
 | `require_item_tags` | list | 否 | -- | 允许触发的物品标签，如 `[minecraft:hoes]` |
@@ -526,11 +526,66 @@ actions:
 | `protection_check` | boolean | 否 | `true` | 是否为每个方块模拟 `PlayerInteractEvent` 供保护插件拦截 |
 | `cancel_vanilla` | boolean | 否 | `true` | 至少转换一个方块后是否取消原版右键 |
 | `drop_roots` | boolean | 否 | `true` | 缠根泥土 → 泥土时是否掉落垂根 |
+| `apply_physics` | boolean | 否 | `true` | 写入方块时是否触发方块/红石更新（等价 `setType` 的物理更新） |
 
 > 不写 `require_item_types` / `require_item_tags` 时沿用旧行为：主手物品名必须包含 `HOE`。
->
+
+#### `transforms` DSL
+
+键 = **源规格**，值 = **目标规格**，两端都支持可选的方块状态段：
+
+```text
+源规格   := (材质 | "#标签") [ "[" 状态列表 "]" ]
+目标规格 := 材质 [ "[" 状态列表 "]" ]
+状态列表 := 条目 ("," 条目)*
+条目     := 属性=值           # 两端都可用
+          | same             # 仅目标侧，same 生成器
+```
+
+**源侧：子集匹配**
+
+| 写法 | 含义 |
+| --- | --- |
+| `ICE` | 匹配该材质任意状态（旧行为） |
+| `WATER[level=0]` | 只匹配 `level=0`，其余属性不参与比较 |
+| `OAK_STAIRS[facing=east, half=top]` | 多属性 AND |
+| `#minecraft:wooden_stairs[facing=east]` | 标签展开成多个材质，每个都按该状态约束匹配 |
+
+未写出的属性不参与匹配；属性名/属性值由服务端解析器校验，写错在配置加载时直接报错。
+
+**目标侧：默认状态 / 显式状态 / `same` 生成器**
+
+| 写法 | 目标 BlockData |
+| --- | --- |
+| `EXPOSED_COPPER` | 目标默认状态（等价旧版本的 `setType`） |
+| `OAK_SLAB[type=top]` | 显式状态，未写出的属性取目标默认值 |
+| `EXPOSED_CUT_COPPER_STAIRS[same]` | 拷贝源方块中「目标也拥有」的同名属性 |
+| `COPPER_BULB[same, lit=false]` | 先 `same` 拷贝，再被字面条目覆盖（字面永远优先） |
+
+`same` 生成器 = 纯 Bukkit 版的 `Block#withPropertiesOf`：
+
+- 按**属性名**求交集拷贝（源有 `facing/half/shape/waterlogged`，目标也有 → 全部搬过去）；
+- 交集外的源属性静默丢弃，源的缺省属性使用目标默认值；
+- 生成的 BlockData 若被服务端拒绝，先降级为「只应用字面条目」，仍失败才回退目标默认状态，并对该 `(源→目标)` 组合只告警一次。
+
+`same` 只能出现在**目标侧**；写在源侧会在加载期报错。
+
+**优先级（同一材质内）**
+
+1. 状态约束更多的规则优先；
+2. 约束数量相同时，`transforms` 里显式写的规则优先于 `inherit_defaults` 默认表；
+3. 仍然相同则按 YAML 声明顺序，先声明者优先。
+
+命中第一条即停止，不做链式跳转。因此下面这段可以共存：`level=0` 的水结冰，其余状态的水不变。
+
+```yaml
+transforms:
+  "WATER[level=0]": ICE
+  WATER: WATER
+```
+
 > 多个附魔可以各自维护一张 `transforms` 表。**建议每个附魔的表互不重叠**：运行时按附魔逐个执行，
-> 重叠时“先改到的生效”，而附魔遍历顺序不保证稳定；插件会在 `onEnable` 时对重叠项打印警告。
+> 重叠时“先改到的生效”，而附魔遍历顺序不保证稳定；插件会在 `onEnable` 时对状态约束相容的重叠项打印警告。
 
 ```yaml
 # 默认耕地行为
@@ -553,6 +608,21 @@ actions:
       ICE: WATER
       OBSIDIAN: LAVA
     consume_durability: true
+```
+
+```yaml
+# 状态感知：只处理静止水；换楼梯木种时保留朝向/半格/水面
+actions:
+  work:
+    type: till
+    radius: 0
+    inherit_defaults: false
+    transforms:
+      "WATER[level=0]": ICE
+      "#minecraft:wooden_stairs": "OAK_STAIRS[same]"
+      CUT_COPPER_STAIRS: "EXPOSED_CUT_COPPER_STAIRS[same]"
+      COPPER_BULB: "EXPOSED_COPPER_BULB[same, lit=false]"
+    require_item_tags: [minecraft:axes]
 ```
 
 ---

@@ -15,6 +15,7 @@ import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -22,6 +23,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,8 +35,15 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 在右键方块时，把半径内的一批方块转换为另一种方块。
  * <p>
- * 所有转换规则都可以在附魔 YAML 的 {@code actions.<key>.transforms} 中声明，
- * 因此每个附魔都可以拥有自己独立的转换表。
+ * 转换规则在附魔 YAML 的 {@code actions.<key>.transforms} 中声明，源/目标都支持可选的方块状态段：
+ * <pre>
+ * transforms:
+ *   "WATER[level=0]": ICE                                  # 源侧子集匹配
+ *   "CUT_COPPER_STAIRS": "EXPOSED_CUT_COPPER_STAIRS[same]"  # same 生成器：拷贝同名状态
+ *   "COPPER_BULB": "OXIDIZED_COPPER_BULB[same, lit=false]"  # same + 字面覆盖
+ *   "#minecraft:wooden_stairs": "OAK_STAIRS[same]"
+ * </pre>
+ * 详细的 DSL 语义见 {@code docs/action_types_zh.md} 的 till 章节。
  */
 public class TillAction implements Action {
 
@@ -55,14 +65,24 @@ public class TillAction implements Action {
     private static final Map<String, List<Material>> BLOCK_TAG_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, List<Material>> ITEM_TAG_CACHE = new ConcurrentHashMap<>();
 
+    /**
+     * 规则表缓存：Action 在每次触发时都会重建，而状态段解析需要与注册表交互，
+     * 因此按 transforms 原文缓存解析结果（配置内容不变即恒命中）。
+     */
+    private static final Map<String, RuleTable> TRANSFORM_CACHE = new ConcurrentHashMap<>();
+
+    /** 运行期回退告警去重（每个 from->to 组合只警告一次）。 */
+    private static final Set<String> WARNED_FALLBACKS = ConcurrentHashMap.newKeySet();
+
     private final ScalingFunction radius;
-    private final Map<Material, Material> transforms;
+    private final Map<Material, List<Rule>> rules;
     private final Set<Material> requiredItemTypes;
     private final boolean useLegacyHoeCheck;
     private final boolean consumeDurability;
     private final boolean protectionCheck;
     private final boolean cancelVanilla;
     private final boolean dropRoots;
+    private final boolean applyPhysics;
 
     private static final ThreadLocal<Boolean> processing = ThreadLocal.withInitial(() -> false);
 
@@ -73,7 +93,7 @@ public class TillAction implements Action {
         }
         this.radius = ScalingFunctionLoader.load(radiusObj);
 
-        this.transforms = Map.copyOf(parseTransforms(params));
+        this.rules = loadTransforms(params).byMaterial();
 
         this.requiredItemTypes = resolveRequiredItemTypes(params);
         this.useLegacyHoeCheck = !params.containsKey("require_item_types")
@@ -83,6 +103,7 @@ public class TillAction implements Action {
         this.protectionCheck = !Boolean.FALSE.equals(params.get("protection_check"));
         this.cancelVanilla = !Boolean.FALSE.equals(params.get("cancel_vanilla"));
         this.dropRoots = !Boolean.FALSE.equals(params.get("drop_roots"));
+        this.applyPhysics = !Boolean.FALSE.equals(params.get("apply_physics"));
     }
 
     public static boolean isProcessing() {
@@ -123,11 +144,8 @@ public class TillAction implements Action {
         int centerZ = center.getBlockZ();
         World world = clickedBlock.getWorld();
 
-        Material clickedOriginal = clickedBlock.getType();
-        Material clickedTarget = transforms.get(clickedOriginal);
-        boolean clickedMatches = clickedTarget != null && clickedTarget != clickedOriginal;
-
         // 点击的方块在表里时必须拦截原版右键；即使保护插件拒绝了我们，也不能让原版绕过去
+        boolean clickedMatches = resolve(clickedBlock.getType(), clickedBlock.getBlockData()) != null;
         if (cancelVanilla && clickedMatches) {
             originalEvent.setCancelled(true);
         }
@@ -146,14 +164,21 @@ public class TillAction implements Action {
                     if (!Bukkit.isOwnedByCurrentRegion(block)) continue;
 
                     Material original = block.getType();
-                    Material target = transforms.get(original);
-                    if (target == null || target == original) continue;
+                    // 材质不在表里时直接跳过，避免对整片区域读取 BlockData
+                    if (!this.rules.containsKey(original)) continue;
+
+                    BlockData current = block.getBlockData();
+                    TargetSpec target = resolve(original, current);
+                    if (target == null) continue;
+
+                    BlockData result = target.create(current);
+                    if (result == null || result.equals(current)) continue;
 
                     if (protectionCheck && isDeniedByProtection(player, tool, block)) {
                         continue;
                     }
 
-                    block.setType(target);
+                    block.setBlockData(result, applyPhysics);
                     changed = true;
 
                     if (consumeDurability) {
@@ -175,6 +200,23 @@ public class TillAction implements Action {
             originalEvent.setCancelled(true);
         }
         return changed;
+    }
+
+    /** 在某个材质对应的规则中取第一条命中的目标；没有命中返回 null。 */
+    private TargetSpec resolve(Material material, BlockData data) {
+        List<Rule> candidates = this.rules.get(material);
+        if (candidates == null) return null;
+
+        Map<String, String> sourceStates = null;
+        for (Rule rule : candidates) {
+            Map<String, String> required = rule.required();
+            if (!required.isEmpty()) {
+                if (sourceStates == null) sourceStates = statesOf(data.getAsString());
+                if (!matches(sourceStates, required)) continue;
+            }
+            return rule.target();
+        }
+        return null;
     }
 
     private boolean isValidTool(Material type) {
@@ -207,28 +249,322 @@ public class TillAction implements Action {
     // 配置解析
     // ------------------------------------------------------------------
 
-    /** 计算某个 till 动作最终生效的转换表（含 inherit_defaults 与标签展开）。 */
-    public static Map<Material, Material> parseTransforms(Map<String, Object> params) {
-        Map<Material, Material> result = new LinkedHashMap<>();
+    /** 按 transforms 原文缓存的规则表。 */
+    private static RuleTable loadTransforms(Map<String, Object> params) {
+        return TRANSFORM_CACHE.computeIfAbsent(transformCacheKey(params), _ -> buildTransforms(params));
+    }
+
+    private static String transformCacheKey(Map<String, Object> params) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(Boolean.FALSE.equals(params.get("inherit_defaults")) ? "0" : "1");
+        Object raw = params.get("transforms");
+        if (raw instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                sb.append('|').append(entry.getKey()).append('=').append(entry.getValue());
+            }
+        }
+        return sb.toString();
+    }
+
+    private static RuleTable buildTransforms(Map<String, Object> params) {
+        List<Rule> all = new ArrayList<>();
+
+        int index = 0;
         if (!Boolean.FALSE.equals(params.get("inherit_defaults"))) {
-            result.putAll(VANILLA_TRANSFORMS);
+            for (Map.Entry<Material, Material> entry : VANILLA_TRANSFORMS.entrySet()) {
+                TargetSpec target = new TargetSpec(entry.getValue(), false, Map.of());
+                all.add(new Rule(entry.getKey(), Map.of(), target, false, index++));
+            }
         }
 
         Object raw = params.get("transforms");
         if (raw instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
-                String fromKey = String.valueOf(entry.getKey());
-                Material to = resolveBlockMaterial(String.valueOf(entry.getValue()));
-                List<Material> froms = resolveBlockMaterials(fromKey);
-                if (froms.isEmpty()) {
-                    throw new IllegalArgumentException("Unknown block or tag in till transforms: " + fromKey);
-                }
-                for (Material from : froms) {
-                    result.put(from, to);
+                String fromSpec = String.valueOf(entry.getKey());
+                String toSpec = String.valueOf(entry.getValue());
+
+                List<SourceConstraint> sources = parseSource(fromSpec);
+                TargetSpec target = parseTarget(toSpec);
+                for (SourceConstraint source : sources) {
+                    all.add(new Rule(source.material(), source.required(), target, true, index++));
                 }
             }
         }
+
+        // 同一材质内：状态约束多者先，其次用户显式配置优先于默认表，最后按声明顺序
+        Comparator<Rule> ordering = Comparator
+                .comparingInt((Rule rule) -> rule.required().size()).reversed()
+                .thenComparing(rule -> rule.user() ? 0 : 1)
+                .thenComparingInt(Rule::index);
+
+        Map<Material, List<Rule>> byMaterial = new LinkedHashMap<>();
+        for (Rule rule : all) {
+            byMaterial.computeIfAbsent(rule.material(), _ -> new ArrayList<>()).add(rule);
+        }
+        byMaterial.values().forEach(list -> list.sort(ordering));
+
+        return new RuleTable(Map.copyOf(byMaterial), List.copyOf(all));
+    }
+
+    /** 解析源侧：材质（或标签）+ 可选状态段，返回每个材质的子集约束。 */
+    private static List<SourceConstraint> parseSource(String raw) {
+        String text = raw.trim();
+        int bracket = text.indexOf('[');
+        String name = bracket < 0 ? text : text.substring(0, bracket).trim();
+        String statePart = bracket < 0 ? "" : stripBrackets(text, bracket, raw);
+
+        List<String> literalTokens = new ArrayList<>();
+        for (String token : splitStateTokens(statePart)) {
+            if (token.isEmpty()) continue;
+            if (token.equalsIgnoreCase("same")) {
+                throw new IllegalArgumentException("'same' is only allowed on the target side: " + raw);
+            }
+            if (token.indexOf('=') <= 0) {
+                throw new IllegalArgumentException("Invalid state entry '" + token + "' in till source: " + raw);
+            }
+            literalTokens.add(token);
+        }
+
+        List<Material> materials = name.startsWith("#")
+                ? resolveTag(name.substring(1), true)
+                : List.of(requireBlockMaterial(name));
+
+        List<SourceConstraint> result = new ArrayList<>(materials.size());
+        for (Material material : materials) {
+            result.add(new SourceConstraint(material, canonicalStates(material, literalTokens, raw)));
+        }
         return result;
+    }
+
+    /** 解析目标侧：材质 + 可选状态段（支持 same 生成器与字面覆盖）。 */
+    private static TargetSpec parseTarget(String raw) {
+        String text = raw.trim();
+        if (text.startsWith("#")) {
+            throw new IllegalArgumentException("till target must be a concrete block, not a tag: " + raw);
+        }
+
+        int bracket = text.indexOf('[');
+        String name = bracket < 0 ? text : text.substring(0, bracket).trim();
+        String statePart = bracket < 0 ? "" : stripBrackets(text, bracket, raw);
+
+        Material material = requireBlockMaterial(name);
+
+        boolean copySame = false;
+        List<String> literalTokens = new ArrayList<>();
+        for (String token : splitStateTokens(statePart)) {
+            if (token.isEmpty()) continue;
+            if (token.equalsIgnoreCase("same")) {
+                copySame = true;
+                continue;
+            }
+            if (token.indexOf('=') <= 0) {
+                throw new IllegalArgumentException("Invalid state entry '" + token + "' in till target: " + raw);
+            }
+            literalTokens.add(token);
+        }
+
+        Map<String, String> overrides = canonicalStates(material, literalTokens, raw);
+        return new TargetSpec(material, copySame, overrides);
+    }
+
+    /**
+     * 把状态段交给服务端解析器校验并规范化（属性名、属性值都由服务端判定）。
+     * <p>
+     * 只保留配置中实际写出的属性：{@code OAK_STAIRS[facing=east]} 规范化后仍是
+     * {@code facing=east}，不会把未写出的属性一起带进匹配条件（源侧是子集匹配）。
+     */
+    private static Map<String, String> canonicalStates(Material material, List<String> tokens, String raw) {
+        if (tokens.isEmpty()) return Map.of();
+
+        List<String> writtenNames = new ArrayList<>(tokens.size());
+        for (String token : tokens) {
+            writtenNames.add(token.substring(0, token.indexOf('=')).trim());
+        }
+
+        BlockData probe;
+        try {
+            probe = Bukkit.createBlockData(String.valueOf(material.getKey())
+                    + "[" + String.join(",", tokens) + "]");
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid block state for " + material.name()
+                    + " in till spec '" + raw + "': " + e.getMessage(), e);
+        }
+
+        Map<String, String> resolved = statesOf(probe.getAsString());
+        Map<String, String> canonical = new LinkedHashMap<>();
+        for (String name : writtenNames) {
+            String value = resolved.get(name);
+            if (value == null) {
+                throw new IllegalArgumentException("Unknown block state property '" + name
+                        + "' for " + material.name() + " in till spec: " + raw);
+            }
+            canonical.put(name, value);
+        }
+        return Map.copyOf(canonical);
+    }
+
+    private static String stripBrackets(String text, int bracket, String raw) {
+        if (!text.endsWith("]")) {
+            throw new IllegalArgumentException("Unclosed block state section in till spec: " + raw);
+        }
+        return text.substring(bracket + 1, text.length() - 1);
+    }
+
+    private static List<String> splitStateTokens(String statePart) {
+        List<String> tokens = new ArrayList<>();
+        if (statePart.isEmpty()) return tokens;
+        for (String token : statePart.split(",")) {
+            tokens.add(token.trim());
+        }
+        return tokens;
+    }
+
+    /** 把 BlockData#getAsString() 的结果解析成 属性 -> 值。 */
+    private static Map<String, String> statesOf(String asString) {
+        int bracket = asString.indexOf('[');
+        if (bracket < 0 || bracket + 1 >= asString.length()) return Map.of();
+        int end = asString.lastIndexOf(']');
+        if (end <= bracket) return Map.of();
+
+        Map<String, String> states = new LinkedHashMap<>();
+        for (String token : asString.substring(bracket + 1, end).split(",")) {
+            int eq = token.indexOf('=');
+            if (eq <= 0) continue;
+            states.put(token.substring(0, eq).trim(), token.substring(eq + 1).trim());
+        }
+        return states;
+    }
+
+    private static boolean matches(Map<String, String> sourceStates, Map<String, String> required) {
+        for (Map.Entry<String, String> entry : required.entrySet()) {
+            if (!entry.getValue().equals(sourceStates.get(entry.getKey()))) return false;
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // 规则模型
+    // ------------------------------------------------------------------
+
+    private record SourceConstraint(Material material, Map<String, String> required) {}
+
+    private record Rule(Material material, Map<String, String> required, TargetSpec target, boolean user, int index) {}
+
+    private record RuleTable(Map<Material, List<Rule>> byMaterial, List<Rule> allRules) {}
+
+    /** 目标方块的生成方式：材质 + 可选 same 拷贝 + 字面覆盖。 */
+    private static final class TargetSpec {
+        private final Material material;
+        private final boolean copySame;
+        private final Map<String, String> overrides;
+        private final Set<String> propertyNames;
+        private final String display;
+
+        TargetSpec(Material material, boolean copySame, Map<String, String> overrides) {
+            this.material = material;
+            this.copySame = copySame;
+            this.overrides = Map.copyOf(overrides);
+            this.propertyNames = Set.copyOf(statesOf(material.createBlockData().getAsString()).keySet());
+            this.display = buildDisplay();
+        }
+
+        /**
+         * 生成目标 BlockData。
+         * <p>
+         * {@code same} 只拷贝「目标方块也拥有」的同名属性；字面条目覆盖拷贝结果。
+         * 生成失败时回退目标默认状态，避免破坏整次右键。
+         */
+        BlockData create(BlockData source) {
+            BlockData fallback = material.createBlockData();
+            if (!copySame && overrides.isEmpty()) return fallback;
+
+            Map<String, String> merged = new LinkedHashMap<>();
+            if (copySame) {
+                Map<String, String> sourceStates = statesOf(source.getAsString());
+                for (String name : propertyNames) {
+                    String value = sourceStates.get(name);
+                    if (value != null) merged.put(name, value);
+                }
+            }
+            merged.putAll(overrides);
+
+            // 先按 same + 字面覆盖生成；失败则退一步只保留字面覆盖；再失败回退目标默认状态
+            try {
+                BlockData data = build(merged);
+                if (data != null) return data;
+            } catch (IllegalArgumentException e) {
+                warnFallback(merged, e);
+            }
+
+            if (!overrides.isEmpty() && !overrides.equals(merged)) {
+                try {
+                    BlockData data = build(overrides);
+                    if (data != null) {
+                        warnFallback(merged, null);
+                        return data;
+                    }
+                } catch (IllegalArgumentException e) {
+                    warnFallback(overrides, e);
+                }
+            }
+
+            return fallback;
+        }
+
+        private BlockData build(Map<String, String> states) {
+            if (states.isEmpty()) return null;
+
+            StringBuilder sb = new StringBuilder(String.valueOf(material.getKey())).append('[');
+            boolean first = true;
+            for (Map.Entry<String, String> entry : states.entrySet()) {
+                if (!first) sb.append(',');
+                sb.append(entry.getKey()).append('=').append(entry.getValue());
+                first = false;
+            }
+            sb.append(']');
+
+            try {
+                return Bukkit.createBlockData(sb.toString());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(sb.toString(), e);
+            }
+        }
+
+        private void warnFallback(Map<String, String> states, IllegalArgumentException cause) {
+            String key = display + "|" + states + "|" + (cause == null ? "" : cause.getMessage());
+            if (!WARNED_FALLBACKS.add(key)) return;
+            Bukkit.getLogger().warning("[MeowsEnchants] till 目标状态生成失败，已降级处理: "
+                    + display + " -> " + states
+                    + (cause == null ? "" : " (" + cause.getMessage() + ")"));
+        }
+
+        private String buildDisplay() {
+            StringBuilder sb = new StringBuilder(material.name());
+            if (copySame || !overrides.isEmpty()) {
+                sb.append('[');
+                boolean first = true;
+                if (copySame) {
+                    sb.append("same");
+                    first = false;
+                }
+                for (Map.Entry<String, String> entry : overrides.entrySet()) {
+                    if (!first) sb.append(',');
+                    sb.append(entry.getKey()).append('=').append(entry.getValue());
+                    first = false;
+                }
+                sb.append(']');
+            }
+            return sb.toString();
+        }
+
+        String display() {
+            return display;
+        }
+
+        /** 目标与原方块完全一致（同材质、全部属性直接拷贝、无字面覆盖）时是空操作。 */
+        boolean isIdentityFor(Material source) {
+            return material == source && copySame && overrides.isEmpty();
+        }
     }
 
     private static Set<Material> resolveRequiredItemTypes(Map<String, Object> params) {
@@ -255,23 +591,12 @@ public class TillAction implements Action {
         return List.of(value);
     }
 
-    private static Material resolveBlockMaterial(String name) {
+    private static Material requireBlockMaterial(String name) {
         Material material = Material.matchMaterial(name);
-        if (material == null || !material.isBlock()) {
-            throw new IllegalArgumentException("Unknown block material: " + name);
+        if (material == null || material.isLegacy() || !material.isBlock()) {
+            throw new IllegalArgumentException("Unknown block material in till spec: " + name);
         }
         return material;
-    }
-
-    private static List<Material> resolveBlockMaterials(String name) {
-        if (name.startsWith("#")) {
-            return resolveTag(name.substring(1), true);
-        }
-        Material material = Material.matchMaterial(name);
-        if (material == null || !material.isBlock()) {
-            throw new IllegalArgumentException("Unknown block material: " + name);
-        }
-        return List.of(material);
     }
 
     private static List<Material> resolveItemTag(String name) {
@@ -317,33 +642,71 @@ public class TillAction implements Action {
     /**
      * 校验多个 till 附魔的转换表是否重叠。
      * <p>
-     * 同一个源方块被不同附魔映射到不同目标时打印警告。运行时的顺序取决于 Map 遍历顺序，
-     * 因此重叠配置的结果不可预期，建议每个附魔使用互不重叠的表。
+     * 同一源材质被不同附魔映射到不同目标，且两者的状态约束相容时打印警告。
+     * 运行时跨附魔的顺序不确定，因此重叠配置的结果不可预期，建议每个附魔使用互不重叠的表。
      */
     public static void validateOverlap(Map<Key, EnchantConfig> configs, Logger logger) {
-        Map<Material, String> owners = new LinkedHashMap<>();
+        record Entry(String owner, Material material, Map<String, String> required, String target) {}
+
+        List<Entry> entries = new ArrayList<>();
 
         for (EnchantConfig config : configs.values()) {
             for (Map<String, Object> action : config.getActions()) {
                 if (!"till".equalsIgnoreCase(String.valueOf(action.get("type")))) continue;
 
-                Map<Material, Material> transforms;
+                RuleTable table;
                 try {
-                    transforms = parseTransforms(action);
+                    table = loadTransforms(action);
                 } catch (RuntimeException e) {
                     logger.warn("附魔 {} 的 till 转换表解析失败: {}", config.getId(), e.getMessage());
                     continue;
                 }
 
-                for (Map.Entry<Material, Material> entry : transforms.entrySet()) {
-                    String current = config.getId() + " -> " + entry.getValue();
-                    String previous = owners.putIfAbsent(entry.getKey(), current);
-                    if (previous != null && !previous.endsWith(" -> " + entry.getValue())) {
-                        logger.warn("till 转换表重叠: {} 同时被 [{}] 和 [{}] 定义，运行时结果不确定",
-                                entry.getKey(), previous, current);
-                    }
+                for (Rule rule : table.allRules()) {
+                    // 目标与原方块完全一致（如 "#minecraft:wooden_stairs": "OAK_STAIRS[same]" 展开到橡木时）
+                    // 是空操作，不会与他人争抢，不参与重叠判定
+                    if (rule.target().isIdentityFor(rule.material())) continue;
+                    entries.add(new Entry(config.getId(), rule.material(),
+                            rule.required(), rule.target().display()));
                 }
             }
         }
+
+        for (int i = 0; i < entries.size(); i++) {
+            for (int j = i + 1; j < entries.size(); j++) {
+                Entry a = entries.get(i);
+                Entry b = entries.get(j);
+                if (a.owner().equals(b.owner())) continue;
+                if (a.material() != b.material()) continue;
+                if (a.target().equals(b.target())) continue;
+                if (!constraintsOverlap(a.required(), b.required())) continue;
+
+                logger.warn("till 转换表重叠: {} 同时被 [{}: {} -> {}] 和 [{}: {} -> {}] 定义，运行时结果不确定",
+                        a.material().name(),
+                        a.owner(), a.material().name() + describeStates(a.required()), a.target(),
+                        b.owner(), b.material().name() + describeStates(b.required()), b.target());
+            }
+        }
+    }
+
+    /** 两个子集约束是否存在同时命中的可能（同名属性取值冲突则不重叠）。 */
+    private static boolean constraintsOverlap(Map<String, String> a, Map<String, String> b) {
+        for (Map.Entry<String, String> entry : a.entrySet()) {
+            String other = b.get(entry.getKey());
+            if (other != null && !other.equals(entry.getValue())) return false;
+        }
+        return true;
+    }
+
+    private static String describeStates(Map<String, String> states) {
+        if (states.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : states.entrySet()) {
+            if (!first) sb.append(',');
+            sb.append(entry.getKey()).append('=').append(entry.getValue());
+            first = false;
+        }
+        return sb.append(']').toString();
     }
 }

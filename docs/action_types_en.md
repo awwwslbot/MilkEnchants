@@ -409,10 +409,81 @@ actions:
 ```
 ***
 ### till
-Tills dirt/grass blocks in a radius when using a hoe.
-| Parameter | Type            | Required | Default | Description    |
-| --------- | --------------- | -------- | ------- | -------------- |
-| `radius`  | ScalingFunction | yes      | --      | Tilling radius |
+Tills dirt/grass blocks in a radius when using a hoe. Each enchant can ship its own conversion table via `transforms`.
+
+| Parameter | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `radius` | ScalingFunction | yes | -- | Radius, 0 = clicked block only |
+| `transforms` | map | no | -- | Source spec -> target spec, see the DSL below |
+| `inherit_defaults` | boolean | no | `true` | Also apply the vanilla farmland table (dirt/grass/podzol/mycelium -> farmland, coarse/rooted dirt -> dirt) |
+| `require_item_types` | list | no | -- | Allowed item materials, e.g. `[IRON_HOE, DIAMOND_HOE]` |
+| `require_item_tags` | list | no | -- | Allowed item tags, e.g. `[minecraft:hoes]` |
+| `consume_durability` | boolean | no | `true` | Consume 1 durability per converted block |
+| `protection_check` | boolean | no | `true` | Simulate `PlayerInteractEvent` per block so protection plugins can deny it |
+| `cancel_vanilla` | boolean | no | `true` | Cancel the vanilla right click once at least one block changed |
+| `drop_roots` | boolean | no | `true` | Drop hanging roots when rooted dirt -> dirt |
+| `apply_physics` | boolean | no | `true` | Trigger block/redstone updates when writing the block (same as `setType`) |
+
+> Without `require_item_types` / `require_item_tags` the legacy behaviour is kept: the main hand item name must contain `HOE`.
+
+#### `transforms` DSL
+
+Key = **source spec**, value = **target spec**; both accept an optional block state section:
+
+```text
+source := (material | "#tag") [ "[" states "]" ]
+target := material [ "[" states "]" ]
+states := entry ("," entry)*
+entry  := property=value      # both sides
+        | same                # target side only, the `same` generator
+```
+
+**Source side: subset matching**
+
+| Form | Meaning |
+| --- | --- |
+| `ICE` | Any state of that material (legacy behaviour) |
+| `WATER[level=0]` | Only `level=0`; other properties are not compared |
+| `OAK_STAIRS[facing=east, half=top]` | Multiple properties are ANDed |
+| `#minecraft:wooden_stairs[facing=east]` | Tag expanded, every material matched with that constraint |
+
+Unlisted properties do not participate in matching. Property names/values are validated by the server parser, so typos fail at config load time.
+
+**Target side: default state / explicit state / `same` generator**
+
+| Form | Resulting BlockData |
+| --- | --- |
+| `EXPOSED_COPPER` | Target default state (same as the old `setType`) |
+| `OAK_SLAB[type=top]` | Explicit state, unlisted properties keep the target default |
+| `EXPOSED_CUT_COPPER_STAIRS[same]` | Copy every property name the target also has |
+| `COPPER_BULB[same, lit=false]` | `same` first, then literal overrides win |
+
+The `same` generator is the Bukkit-side equivalent of `Block#withPropertiesOf`:
+
+- properties are matched by **name** (source `facing/half/shape/waterlogged` are all copied when the target has them);
+- source properties the target does not have are silently dropped; source defaults are replaced by target defaults;
+- if the generated BlockData is rejected, it degrades to literal-only overrides, then to the target default state, warning once per `(from -> to)` pair.
+
+`same` is only allowed on the target side; using it as a source errors at load time.
+
+**Priority (within one material)**
+
+1. rules with more state constraints win;
+2. on equal constraint count, explicit `transforms` entries win over the `inherit_defaults` table;
+3. otherwise YAML declaration order wins.
+
+The first matching rule is applied; there is no chaining. So this is valid: still water freezes, other water levels stay untouched.
+
+```yaml
+transforms:
+  "WATER[level=0]": ICE
+  WATER: WATER
+```
+
+> Multiple enchants may each keep their own `transforms` table. Keep tables disjoint: enchants are executed one
+> after another and their order is not guaranteed; the plugin warns at `onEnable` about overlapping entries whose
+> state constraints are compatible.
+
 ```yaml
 actions:
   farm:
@@ -420,6 +491,21 @@ actions:
     radius:
       base: 1
       per_level: 1
+```
+
+```yaml
+# State aware: still water only; keep stair orientation when swapping wood types
+actions:
+  work:
+    type: till
+    radius: 0
+    inherit_defaults: false
+    transforms:
+      "WATER[level=0]": ICE
+      "#minecraft:wooden_stairs": "OAK_STAIRS[same]"
+      CUT_COPPER_STAIRS: "EXPOSED_CUT_COPPER_STAIRS[same]"
+      COPPER_BULB: "EXPOSED_COPPER_BULB[same, lit=false]"
+    require_item_tags: [minecraft:axes]
 ```
 ***
 ### reflect\_damage
