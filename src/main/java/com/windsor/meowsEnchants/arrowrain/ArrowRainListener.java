@@ -33,6 +33,7 @@ import org.bukkit.util.Vector;
 
 /** Captures the actual fired bow once; impact never consults the shooter's current equipment. */
 public final class ArrowRainListener implements Listener, AutoCloseable {
+    private static final long RAIN_LIFETIME_TICKS = 40L;
     public static final NamespacedKey ENCHANT = new NamespacedKey("meowsenchants", "arrow_rain");
     public static final NamespacedKey GENERATED = new NamespacedKey("meowsenchants", "arrow_rain_generated");
     private final Plugin plugin;
@@ -126,8 +127,9 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
                     || spawn.getY() < spawn.getWorld().getMinHeight()) continue;
             shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, spawn, task -> spawnRain(shot, spawn, state), drop.tick()));
         }
-        // One region-owned completion task bounds retained shot state even if every drop is skipped.
-        shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, centre, task -> finish(shot), 60L));
+        // Keep the final drop alive for its full cleanup window, including level III at tick 60.
+        long completionTick = RainPattern.lastSpawnTick(shot.level) + RAIN_LIFETIME_TICKS;
+        shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, centre, task -> finish(shot), completionTick));
     }
 
     private void spawnRain(Shot shot, Location location, ArrowState state) {
@@ -149,13 +151,17 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
             // Native expiry still applies after disable, when plugin scheduler tasks cannot run.
             rain.setLifetimeTicks(1199);
             rain.setVelocity(new Vector(0, -RainPattern.SPEED, 0));
+            // Projectile pitch uses atan2(dy, horizontalSpeed), so downward is -90 degrees.
+            // setVelocity does not update rotation. Set both current/old rotation before insertion
+            // so the first spawn packet already shows a vertical arrow, without interpolating from 0.
+            rain.setRotation(0f, -90f);
         });
         if (!arrow.isValid()) return; // A protection plugin may cancel ProjectileLaunchEvent.
         rainArrows.put(arrow.getUniqueId(), arrow);
         shot.arrows.add(arrow);
         // This uses the entity scheduler so cleanup follows arrows across region boundaries.
         arrow.getScheduler().runDelayed(plugin, task -> removeOwned(arrow),
-                () -> rainArrows.remove(arrow.getUniqueId()), 40L);
+                () -> rainArrows.remove(arrow.getUniqueId()), RAIN_LIFETIME_TICKS);
         if (!active(shot)) removeOwned(arrow); // Covers a quit/disable racing the spawn callback.
     }
 

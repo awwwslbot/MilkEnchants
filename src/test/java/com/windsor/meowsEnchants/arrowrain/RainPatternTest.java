@@ -11,19 +11,29 @@ class RainPatternTest {
         assertArrayEquals(new int[]{4, 8, 16}, new int[]{RainPattern.extraDurability(1)+1, RainPattern.extraDurability(2)+1, RainPattern.extraDurability(3)+1});
     }
 
-    @Test void everyArrowStaysInDiskAndArrivesWithinOneSecondAt20Tps() {
+    @Test void releaseStartsTwentyBlocksAboveTheImpactPoint() {
+        assertEquals(20.0, RainPattern.HEIGHT);
+    }
+
+    @Test void everyArrowStaysInDiskAndIsReleasedEvenlyWithinItsLevelWindow() {
         Random random = new Random(624798);
         for (int level = 1; level <= 3; level++) {
             for (int repetition = 0; repetition < 500; repetition++) {
                 var drops = RainPattern.drops(level, random);
                 assertEquals(RainPattern.count(level), drops.size());
                 assertEquals(1L, drops.getFirst().tick());
-                assertEquals(10L, drops.getLast().tick());
+                int lastTick = 20 * level;
+                assertEquals(lastTick, drops.getLast().tick());
+                double idealGap = (double) (lastTick - 1) / (drops.size() - 1);
+                long previousTick = -1;
                 for (var drop : drops) {
                     assertTrue(Math.hypot(drop.x(), drop.z()) <= RainPattern.radius(level));
-                    assertTrue(drop.tick() >= 1 && drop.tick() <= 10);
-                    // Three ticks for the six-block fall after the scheduled spawn.
-                    assertTrue(drop.tick() + Math.ceil(RainPattern.HEIGHT / RainPattern.SPEED) <= 20);
+                    assertTrue(drop.tick() >= 1 && drop.tick() <= lastTick);
+                    if (previousTick > 0) {
+                        long gap = drop.tick() - previousTick;
+                        assertTrue(gap >= Math.floor(idealGap) && gap <= Math.ceil(idealGap));
+                    }
+                    previousTick = drop.tick();
                 }
             }
         }
@@ -44,5 +54,6 @@ class RainPatternTest {
         assertEquals(32, RainPattern.count(Integer.MAX_VALUE));
         assertEquals(3.5, RainPattern.radius(4));
         assertEquals(15, RainPattern.extraDurability(100));
+        assertEquals(60, RainPattern.lastSpawnTick(Integer.MAX_VALUE));
     }
 }

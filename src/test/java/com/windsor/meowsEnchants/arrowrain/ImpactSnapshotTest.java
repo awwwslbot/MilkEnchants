@@ -8,6 +8,7 @@ import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -89,6 +90,46 @@ class ImpactSnapshotTest {
         verify(rain).setCritical(true);
     }
 
+    @Test void downwardVelocityAndModelAreInitializedBeforeWorldInsertion() {
+        Fixture f = new Fixture();
+        when(f.source.getLocation()).thenReturn(new Location(f.world, 10, 64, 10, 123f, 45f));
+        Block spawnBlock = mock(Block.class);
+        when(spawnBlock.isPassable()).thenReturn(true);
+        when(f.world.isChunkLoaded(anyInt(), anyInt())).thenReturn(true);
+        when(f.world.getBlockAt(any(Location.class))).thenReturn(spawnBlock);
+        Arrow rain = mock(Arrow.class);
+        when(rain.getPersistentDataContainer()).thenReturn(mock(PersistentDataContainer.class));
+        when(rain.getScheduler()).thenReturn(mock(EntityScheduler.class));
+        when(rain.getUniqueId()).thenReturn(UUID.randomUUID());
+        when(rain.isValid()).thenReturn(true);
+        when(f.world.spawn(any(Location.class), eq(Arrow.class), org.mockito.ArgumentMatchers.<Consumer<Arrow>>any())).thenAnswer(invocation -> {
+            Location spawn = invocation.getArgument(0);
+            Consumer<Arrow> initializer = invocation.getArgument(2);
+            initializer.accept(rain);
+            // These values must be ready when World.spawn inserts the entity and sends its first packet.
+            verify(rain).setRotation(0f, -90f);
+            verify(rain).setVelocity(argThat(v -> v.getX() == 0 && v.getY() == -2.5 && v.getZ() == 0));
+            assertEquals(84.0, spawn.getY());
+            return rain;
+        });
+        try (var bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(Bukkit::getRegionScheduler).thenReturn(f.regions);
+            f.listener.onHit(f.hit);
+            f.firstDrop.get().accept(mock(ScheduledTask.class));
+        }
+    }
+
+    @Test void finalLevelThreeDropHasTimeToFallBeforeShotCompletion() {
+        Fixture f = new Fixture(3);
+        try (var bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(Bukkit::getRegionScheduler).thenReturn(f.regions);
+            f.listener.onHit(f.hit);
+        }
+        long minimumCompletionTick = 60 + (long) Math.ceil(20.0 / RainPattern.SPEED) + 1;
+        assertTrue(f.completionTick.get() >= minimumCompletionTick,
+                "Shot completion must not cancel/remove the final drops released at tick 60");
+    }
+
     private static final class Fixture {
         final Plugin plugin = mock(Plugin.class);
         final Player player = mock(Player.class);
@@ -99,9 +140,12 @@ class ImpactSnapshotTest {
         final ArrowRainListener listener = new ArrowRainListener(plugin);
         final ProjectileHitEvent hit = mock(ProjectileHitEvent.class);
         final AtomicReference<Location> completionCentre = new AtomicReference<>();
+        final AtomicLong completionTick = new AtomicLong();
         final AtomicReference<Consumer<ScheduledTask>> firstDrop = new AtomicReference<>();
 
-        Fixture() {
+        Fixture() { this(1); }
+
+        Fixture(int level) {
             when(player.getUniqueId()).thenReturn(UUID.randomUUID());
             when(player.getGameMode()).thenReturn(GameMode.SURVIVAL);
             when(bow.clone()).thenReturn(bow);
@@ -118,11 +162,13 @@ class ImpactSnapshotTest {
             when(regions.runDelayed(eq(plugin), any(Location.class), any(), anyLong())).thenAnswer(invocation -> {
                 Location location = invocation.getArgument(1);
                 long delay = invocation.getArgument(3);
-                if (delay == 60L) completionCentre.set(location.clone());
-                else firstDrop.compareAndSet(null, invocation.getArgument(2));
+                if (location.getY() == 64.0) {
+                    completionCentre.set(location.clone());
+                    completionTick.set(delay);
+                } else firstDrop.compareAndSet(null, invocation.getArgument(2));
                 return mock(ScheduledTask.class);
             });
-            listener.trackSource(source, player, bow, 1);
+            listener.trackSource(source, player, bow, level);
             ProjectileLaunchEvent launch = mock(ProjectileLaunchEvent.class);
             when(launch.getEntity()).thenReturn(source);
             listener.onLaunch(launch);
