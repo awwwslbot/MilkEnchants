@@ -25,6 +25,8 @@ import com.windsor.meowsEnchants.listeners.PassiveTaskManager;
 import com.windsor.meowsEnchants.listeners.PlayerStateListener;
 import com.windsor.meowsEnchants.listeners.ProjectileListener;
 import com.windsor.meowsEnchants.listeners.VillagerTradeListener;
+import com.windsor.meowsEnchants.tracking.TrackingConfig;
+import com.windsor.meowsEnchants.tracking.TrackingListener;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
@@ -44,6 +46,7 @@ public class MeowsEnchants extends JavaPlugin {
 
     private EnchantBrowser enchantBrowser;
     private ArrowRainListener arrowRain;
+    private TrackingListener tracking;
 
     public static MeowsEnchants getInstance() {
         return instance;
@@ -100,6 +103,12 @@ public class MeowsEnchants extends JavaPlugin {
         if (arrowRain != null) {
             getServer().getPluginManager().registerEvents(arrowRain, this);
         }
+        tracking = TrackingConfig.createListener(this);
+        if (tracking != null) {
+            getServer().getPluginManager().registerEvents(tracking, this);
+            getServer().getPluginManager().registerEvents(tracking.combat(), this);
+            if (arrowRain != null) arrowRain.setRainObserver(tracking);
+        }
 
         enchantBrowser = new EnchantBrowser(this);
         getServer().getPluginManager().registerEvents(enchantBrowser, this);
@@ -112,6 +121,11 @@ public class MeowsEnchants extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (tracking != null) {
+            if (arrowRain != null) arrowRain.setRainObserver(null);
+            tracking.close();
+            tracking = null;
+        }
         if (arrowRain != null) {
             arrowRain.close();
             arrowRain = null;

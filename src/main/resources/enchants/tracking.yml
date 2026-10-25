@@ -1,0 +1,69 @@
+name: "<gradient:#B48CFF:#5CE1E6>跟踪"
+description:
+  - "&f玩家射出的箭会自动拐向飞行路线附近的目标"
+  - "&7一级：路线两侧1.5格内"
+  - "&7二级：路线两侧2.5格内"
+  - "&7三级：路线两侧3.5格内"
+  - "&b优先敌对生物，其次正在PvP的玩家，最后友好生物"
+  - "&b不跟踪宠物、村民、傀儡、悦灵和拴绳或被骑乘的生物，也不跟踪被挡住的目标"
+  - "&b被命名的生物不会被跟踪，被这把弓弩射中也不受伤害"
+  - "&b弩射出的烟花火箭也会跟踪，爆炸只伤可以被跟踪的目标"
+  - "&b同时有箭雨时，雨箭也会跟踪"
+  - "&7可用于：&e弓、十字弩"
+max_level: 3
+anvil_cost: 2
+enchanting_table:
+  enabled: false
+  chance: 0.0
+  min_cost: 30
+  max_cost: 30
+villager_trades:
+  enabled: false
+  chance: 0.0
+  treasure: true
+applicable_items: RANGED
+trigger: BOW_SHOOT
+target: SELF
+cooldown: 0
+# Dedicated per-projectile mechanic; an empty action map keeps the generic trigger system idle.
+mechanic: tracking_v1
+actions: {}
+
+# Tracking tunables. Keys missing from an older file use these defaults.
+# 跟踪机制参数；旧文件缺少的键按这里的默认值
+tracking:
+  # 一/二/三级：飞行路线两侧的判定半径（格），量到目标碰撞箱最近的点
+  radius: [1.5, 2.5, 3.5]
+  # 每隔多少 tick 搜索一次目标
+  scan_interval_ticks: 5
+  # 每次搜索检查接下来多少 tick 的飞行路线
+  lookahead_ticks: 10
+  # 锁定后每 tick 最多转多少度
+  max_turn_degrees: 20.0
+  # 离目标身体中心这么近（格）时直接对准
+  direct_aim_distance: 6.0
+  # 目标和飞行方向的夹角超过这个角度（度）就放弃这个目标
+  give_up_angle_degrees: 90.0
+  # 每支箭（烟花）最多跟踪多少 tick
+  max_tracking_ticks: 200
+  # 和其他玩家互相造成伤害后多少秒内算 PvP 状态
+  pvp_combat_seconds: 15
+  # 这些世界里的玩家一直算 PvP 状态（世界 key 或 Bukkit 世界名）
+  always_pvp_worlds:
+    - "milk:pvp"
+  # 锁定后每 tick 在箭尾生成的粒子，所有人可见
+  particle:
+    type: ENCHANT
+    count_min: 1
+    count_max: 2
+    offset: 0.05
+    speed: 0.0
+    # 粒子生成在箭身后多远（格）
+    tail_offset: 0.3
+  # 锁定时只对射手播放的提示音；同一射手同一 tick 只响一次，雨箭不响
+  sound:
+    type: block.note_block.chime
+    category: PLAYERS
+    # 1.0 已是单个声音的最大响度，更大只会让更远处也听得到
+    volume: 1.0
+    pitch: 1.0

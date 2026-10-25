@@ -8,4 +8,12 @@ api-version: '1.21.11'
 load: STARTUP
 folia-supported: true
 
+dependencies:
+  server:
+    # Optional: tracking skips targets the shooter may not hurt inside claims (bound by reflection).
+    Residence:
+      load: BEFORE
+      required: false
+      join-classpath: true
+
 authors: [ Windsor_Macmillan ]

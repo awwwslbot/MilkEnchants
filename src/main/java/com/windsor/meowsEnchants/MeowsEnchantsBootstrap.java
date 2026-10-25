@@ -3,6 +3,7 @@ package com.windsor.meowsEnchants;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.arrowrain.ArrowRainConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
+import com.windsor.meowsEnchants.tracking.TrackingConfig;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
 import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
@@ -51,6 +52,11 @@ public class MeowsEnchantsBootstrap implements PluginBootstrap {
             ArrowRainConfig.installMissing(dir);
         } catch (IOException e) {
             logger.warn("Failed to install missing arrow rain config: " + e.getMessage());
+        }
+        try {
+            TrackingConfig.installMissing(dir);
+        } catch (IOException e) {
+            logger.warn("Failed to install missing tracking config: " + e.getMessage());
         }
 
         Map<Key, EnchantConfig> configMap = EnchantConfigLoader.loadAll(dir, logger);
