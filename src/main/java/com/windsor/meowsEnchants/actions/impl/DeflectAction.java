@@ -2,20 +2,36 @@ package com.windsor.meowsEnchants.actions.impl;
 
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
+import com.windsor.meowsEnchants.actions.ScalingFunction;
+import com.windsor.meowsEnchants.schema.Param;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.util.Vector;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 public class DeflectAction implements Action {
+    public static final Param<ScalingFunction> AMOUNT = Param.scalableNumber("amount", "偏转概率")
+            .help("被弹射物击中时按此概率取消伤害并把弹射物随机弹开；不写时必定偏转（milk.12 行为）")
+            .unit(Param.Unit.RATIO).range(0, 1).def(1.0).build();
+    public static final Param<Double> YAW_SPREAD = Param.number("yaw_spread_degrees", "水平偏转范围")
+            .help("弹开方向在反方向基础上水平随机旋转 0 到此角度").unit(Param.Unit.DEGREE).range(0, 360).def(360.0).build();
+    public static final Param<Double> PITCH_SPREAD = Param.number("pitch_spread_degrees", "竖直偏转范围")
+            .help("竖直方向随机旋转 ±此角度").unit(Param.Unit.DEGREE).range(0, 90).def(30.0).build();
+    public static final List<Param<?>> PARAMS = List.of(AMOUNT, YAW_SPREAD, PITCH_SPREAD);
     private final Random random = new Random();
+    private final ScalingFunction amount;
+    private final double yawSpread;
+    private final double pitchSpread;
 
     public DeflectAction(Map<String, Object> params) {
-        // 无参数
+        this.amount = AMOUNT.read(params);
+        this.yawSpread = Math.toRadians(YAW_SPREAD.read(params));
+        this.pitchSpread = Math.toRadians(PITCH_SPREAD.read(params));
     }
 
     @Override
@@ -38,6 +54,12 @@ public class DeflectAction implements Action {
             return false;
         }
 
+        // 概率没中：视为失败，不取消伤害、不进冷却
+        double chance = amount.getValue(context.getEnchantLevel());
+        if (chance <= 0 || random.nextDouble() >= chance) {
+            return false;
+        }
+
         // 取消伤害
         event.setCancelled(true);
 
@@ -50,9 +72,9 @@ public class DeflectAction implements Action {
         // 反向（大致方向）
         Vector reversed = velocity.clone().multiply(-1);
 
-        // 随机偏转：水平方向随机旋转 0~360°，垂直方向随机旋转 -30°~30°
-        double yaw = random.nextDouble() * 2 * Math.PI;
-        double pitch = (random.nextDouble() - 0.5) * Math.PI / 3; // ±30°
+        // 随机偏转：水平方向随机旋转 0~yaw_spread，垂直方向随机旋转 ±pitch_spread（默认 360° / ±30°）
+        double yaw = random.nextDouble() * yawSpread;
+        double pitch = (random.nextDouble() - 0.5) * 2 * pitchSpread;
 
         // 应用旋转
         Vector deflected = reversed.clone();
