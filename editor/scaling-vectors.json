@@ -1,0 +1,362 @@
+[
+  {
+    "value": 0.5,
+    "level": 1,
+    "expect": 0.5,
+    "note": "数字 = 固定值"
+  },
+  {
+    "value": 0.5,
+    "level": 7,
+    "expect": 0.5
+  },
+  {
+    "value": {
+      "scaling": "fixed",
+      "value": 3
+    },
+    "level": 2,
+    "expect": 3,
+    "note": "旧写法 {scaling: fixed}"
+  },
+  {
+    "value": {
+      "scaling": "fixed",
+      "value": 2
+    },
+    "level": 9,
+    "expect": 2
+  },
+  {
+    "value": {
+      "scaling": "FIXED",
+      "value": 2
+    },
+    "level": 1,
+    "expect": 2,
+    "note": "scaling 不分大小写"
+  },
+  {
+    "value": {
+      "base": 0.1,
+      "per_level": 0.1
+    },
+    "level": 1,
+    "expect": 0.1,
+    "note": "线性 base + per_level × (L − 1)"
+  },
+  {
+    "value": {
+      "base": 0.1,
+      "per_level": 0.1
+    },
+    "level": 3,
+    "expect": 0.30000000000000004
+  },
+  {
+    "value": {
+      "base": 60,
+      "per_level": 40
+    },
+    "level": 3,
+    "expect": 140,
+    "type": "int"
+  },
+  {
+    "value": {
+      "base": 10,
+      "per_level": -3
+    },
+    "level": 4,
+    "expect": 1,
+    "note": "per_level 可为负"
+  },
+  {
+    "value": [
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "level": 1,
+    "expect": 8,
+    "note": "逐级列表：L 级取第 min(L, 长度) 项"
+  },
+  {
+    "value": [
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "level": 3,
+    "expect": 32
+  },
+  {
+    "value": [
+      8,
+      16,
+      32,
+      64,
+      128
+    ],
+    "level": 5,
+    "expect": 128
+  },
+  {
+    "value": [
+      8,
+      16,
+      32
+    ],
+    "level": 7,
+    "expect": 32,
+    "note": "超出列表长度取最后一项（插件日志告警一次）"
+  },
+  {
+    "value": [
+      1.5,
+      2.5
+    ],
+    "level": 1,
+    "expect": 1.5
+  },
+  {
+    "value": [
+      1.5,
+      2.5
+    ],
+    "level": 2,
+    "expect": 2.5
+  },
+  {
+    "value": {
+      "base": 1.5,
+      "per_level": 1
+    },
+    "level": 1,
+    "expect": 1,
+    "type": "int",
+    "note": "整数参数取值后按 (int) 截断"
+  },
+  {
+    "value": {
+      "base": 10,
+      "per_level": 2.5
+    },
+    "level": 2,
+    "expect": 12,
+    "type": "int"
+  },
+  {
+    "value": {
+      "base": 0.1,
+      "per_level": 0.1
+    },
+    "level": 3,
+    "expect": 0,
+    "type": "int"
+  },
+  {
+    "value": [
+      2.9,
+      3.9
+    ],
+    "level": 2,
+    "expect": 3,
+    "type": "int"
+  },
+  {
+    "value": {
+      "base": -1.5,
+      "per_level": 0
+    },
+    "level": 1,
+    "expect": -1,
+    "type": "int",
+    "note": "(int) 向零截断"
+  },
+  {
+    "value": 7,
+    "level": 3,
+    "expect": 7,
+    "type": "int"
+  },
+  {
+    "value": [],
+    "level": 1,
+    "expectError": true,
+    "note": "空列表 = 错误"
+  },
+  {
+    "value": [
+      1,
+      "a"
+    ],
+    "level": 1,
+    "expectError": true
+  },
+  {
+    "value": "abc",
+    "level": 1,
+    "expectError": true
+  },
+  {
+    "value": true,
+    "level": 1,
+    "expectError": true
+  },
+  {
+    "value": {
+      "base": 1
+    },
+    "level": 1,
+    "expectError": true,
+    "note": "线性缺 per_level"
+  },
+  {
+    "value": {
+      "per_level": 1
+    },
+    "level": 1,
+    "expectError": true
+  },
+  {
+    "value": {
+      "scaling": "fixed"
+    },
+    "level": 1,
+    "expectError": true
+  },
+  {
+    "value": {
+      "scaling": "fixed",
+      "value": "2"
+    },
+    "level": 1,
+    "expectError": true
+  },
+  {
+    "value": {
+      "scaling": "linear",
+      "base": 1,
+      "per_level": 2
+    },
+    "level": 2,
+    "expect": 3,
+    "note": "scaling 不是 fixed 时按 base/per_level 读"
+  },
+  {
+    "value": [
+      2.0
+    ],
+    "level": 1,
+    "expect": 2.0,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ],
+    "note": "listSemantics=overlay：逐项覆盖默认列表"
+  },
+  {
+    "value": [
+      2.0
+    ],
+    "level": 2,
+    "expect": 2.5,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ]
+  },
+  {
+    "value": [
+      2.0
+    ],
+    "level": 3,
+    "expect": 3.5,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ]
+  },
+  {
+    "value": [
+      2.0
+    ],
+    "level": 9,
+    "expect": 3.5,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ]
+  },
+  {
+    "value": [
+      0,
+      4.0
+    ],
+    "level": 1,
+    "expect": 1.5,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ],
+    "note": "不大于 0 的项沿用默认"
+  },
+  {
+    "value": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "level": 4,
+    "expect": 4,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ],
+    "note": "比默认长时追加"
+  },
+  {
+    "value": 5,
+    "level": 3,
+    "expect": 5,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ],
+    "note": "数字和线性写法按通用规则"
+  },
+  {
+    "value": {
+      "base": 1,
+      "per_level": 1
+    },
+    "level": 3,
+    "expect": 3,
+    "listSemantics": "overlay",
+    "default": [
+      1.5,
+      2.5,
+      3.5
+    ]
+  }
+]

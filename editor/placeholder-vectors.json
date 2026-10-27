@@ -1,0 +1,2211 @@
+[
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "&b冷却：{cooldown|s}秒",
+    "expect": "&b冷却：10秒",
+    "unresolved": [],
+    "note": "cooldown 单位 ms，|s 除以 1000"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "&7一级斩首率：&a{actions.head.amount|%} &7（每级 +{actions.head.amount@step|%}）",
+    "expect": "&7一级斩首率：&a10% &7（每级 +10%）",
+    "unresolved": [],
+    "note": "契约 §6 的例子"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.amount@3|%}",
+    "expect": "30%",
+    "unresolved": [],
+    "note": "0.1+0.1×2 = 0.30000000000000004，默认最多 2 位小数"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.amount@max|%|1}",
+    "expect": "30.0%",
+    "unresolved": [],
+    "note": "@max = max_level；固定 1 位小数"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "最高等级：{max_level}",
+    "expect": "最高等级：3",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "铁砧 {anvil_cost}",
+    "expect": "铁砧 2",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{enchanting_table.chance|%}",
+    "expect": "1%",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{villager_trades.chance|%|2}",
+    "expect": "1.00%",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{cooldown}",
+    "expect": "10000",
+    "unresolved": [],
+    "note": "不带格式时原样输出数值"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{cooldown|s|1}",
+    "expect": "10.0",
+    "unresolved": [],
+    "note": "格式从左到右：先换算再定小数位"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.chance|%}",
+    "expect": "100%",
+    "unresolved": [],
+    "note": "没写的 chance 取内置默认 1.0"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{max_level@2}",
+    "expect": "3",
+    "unresolved": [],
+    "note": "非按等级取值的参数，任意等级同值"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{cooldown@step}",
+    "expect": "0",
+    "unresolved": [],
+    "note": "非按等级取值的参数，step 为 0"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "&c{cooldwn|s}",
+    "expect": "&c{cooldwn|s}",
+    "unresolved": [
+      "{cooldwn|s}"
+    ],
+    "note": "未知引用原样输出"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.amount|x}",
+    "expect": "{actions.head.amount|x}",
+    "unresolved": [
+      "{actions.head.amount|x}"
+    ],
+    "note": "未知格式"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{max_level|s}",
+    "expect": "{max_level|s}",
+    "unresolved": [
+      "{max_level|s}"
+    ],
+    "note": "|s 只认 ms / tick 单位"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.amount@0}",
+    "expect": "{actions.head.amount@0}",
+    "unresolved": [
+      "{actions.head.amount@0}"
+    ],
+    "note": "等级从 1 起"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.amount@abc}",
+    "expect": "{actions.head.amount@abc}",
+    "unresolved": [
+      "{actions.head.amount@abc}"
+    ]
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.nope.amount}",
+    "expect": "{actions.nope.amount}",
+    "unresolved": [
+      "{actions.nope.amount}"
+    ],
+    "note": "不存在的动作键"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.type}",
+    "expect": "{actions.head.type}",
+    "unresolved": [
+      "{actions.head.type}"
+    ],
+    "note": "type 不是参数"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.heads}",
+    "expect": "{actions.head.heads}",
+    "unresolved": [
+      "{actions.head.heads}"
+    ],
+    "note": "map 参数不能引用"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.player_heads}",
+    "expect": "true",
+    "unresolved": [],
+    "note": "非数值参数不带等级和格式时原样输出（这里是默认值）"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{actions.head.player_heads|%}",
+    "expect": "{actions.head.player_heads|%}",
+    "unresolved": [
+      "{actions.head.player_heads|%}"
+    ]
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{{literal}} 和 }} 还有 {{",
+    "expect": "{literal} 和 } 还有 {",
+    "unresolved": [],
+    "note": "{{ 和 }} 转义"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "单独的 } 原样",
+    "expect": "单独的 } 原样",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "没闭合 {cooldown",
+    "expect": "没闭合 {cooldown",
+    "unresolved": [
+      "{cooldown"
+    ],
+    "note": "没有 } 时剩余部分原样输出"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "空的 {} 原样",
+    "expect": "空的 {} 原样",
+    "unresolved": [
+      "{}"
+    ]
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{name}",
+    "expect": "{name}",
+    "unresolved": [
+      "{name}"
+    ],
+    "note": "只开放契约列出的顶层引用"
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "{enchanting_table.max_cost}",
+    "expect": "{enchanting_table.max_cost}",
+    "unresolved": [
+      "{enchanting_table.max_cost}"
+    ]
+  },
+  {
+    "enchant": {
+      "name": "<gradient:red:dark_red>斩首",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "enchanting_table": {
+        "enabled": true,
+        "chance": 0.01,
+        "min_cost": 30,
+        "max_cost": 30
+      },
+      "villager_trades": {
+        "enabled": false,
+        "chance": 0.01,
+        "treasure": true
+      },
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "KILL_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 10000,
+      "actions": {
+        "head": {
+          "type": "drop_head",
+          "amount": {
+            "base": 0.1,
+            "per_level": 0.1
+          }
+        }
+      }
+    },
+    "line": "<gold>{max_level}</gold> 级",
+    "expect": "<gold>3</gold> 级",
+    "unresolved": [],
+    "note": "先替换占位符，再按 TextUtil 解析颜色"
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "中毒 {actions.poison.duration|s} 秒（每级 +{actions.poison.duration@step|s}）",
+    "expect": "中毒 3 秒（每级 +2）",
+    "unresolved": [],
+    "note": "duration 单位 tick，|s 除以 20"
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.duration@max|s}",
+    "expect": "7",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.chance@2|%}",
+    "expect": "50%",
+    "unresolved": [],
+    "note": "chance 写成逐级列表"
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.chance@9|%}",
+    "expect": "75%",
+    "unresolved": [],
+    "note": "超出列表长度取最后一项"
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.chance@step}",
+    "expect": "{actions.poison.chance@step}",
+    "unresolved": [
+      "{actions.poison.chance@step}"
+    ],
+    "note": "逐级列表没有 step"
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.effect}",
+    "expect": "poison",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.amplifier}",
+    "expect": "0",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "淬毒",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "SHARP_WEAPON",
+      "trigger": "ATTACK_ENTITY",
+      "target": "ALL_ENTITIES",
+      "cooldown": 2000,
+      "actions": {
+        "poison": {
+          "type": "potion_effect",
+          "effect": "poison",
+          "duration": {
+            "base": 60,
+            "per_level": 40
+          },
+          "amplifier": 0,
+          "chance": [
+            0.25,
+            0.5,
+            0.75
+          ]
+        }
+      }
+    },
+    "line": "{actions.poison.particles}",
+    "expect": "true",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "跟踪",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "RANGED",
+      "mechanic": "tracking_v1",
+      "actions": {},
+      "tracking": {
+        "radius": [
+          2.0
+        ],
+        "max_turn_degrees": 30
+      }
+    },
+    "line": "{tracking.radius@2}",
+    "expect": "2.5",
+    "unresolved": [],
+    "note": "tracking.radius 列表逐项覆盖默认 [1.5,2.5,3.5]"
+  },
+  {
+    "enchant": {
+      "name": "跟踪",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "RANGED",
+      "mechanic": "tracking_v1",
+      "actions": {},
+      "tracking": {
+        "radius": [
+          2.0
+        ],
+        "max_turn_degrees": 30
+      }
+    },
+    "line": "{tracking.radius} 格",
+    "expect": "2 格",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "跟踪",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "RANGED",
+      "mechanic": "tracking_v1",
+      "actions": {},
+      "tracking": {
+        "radius": [
+          2.0
+        ],
+        "max_turn_degrees": 30
+      }
+    },
+    "line": "{tracking.max_turn_degrees}°",
+    "expect": "30°",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "跟踪",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "RANGED",
+      "mechanic": "tracking_v1",
+      "actions": {},
+      "tracking": {
+        "radius": [
+          2.0
+        ],
+        "max_turn_degrees": 30
+      }
+    },
+    "line": "{tracking.scan_interval_ticks|s}",
+    "expect": "0.25",
+    "unresolved": [],
+    "note": "没写的机制参数取默认 5 tick"
+  },
+  {
+    "enchant": {
+      "name": "跟踪",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "RANGED",
+      "mechanic": "tracking_v1",
+      "actions": {},
+      "tracking": {
+        "radius": [
+          2.0
+        ],
+        "max_turn_degrees": 30
+      }
+    },
+    "line": "{tracking.particle.tail_offset}",
+    "expect": "0.3",
+    "unresolved": [],
+    "note": "嵌套段用 . 连接"
+  },
+  {
+    "enchant": {
+      "name": "跟踪",
+      "max_level": 3,
+      "anvil_cost": 2,
+      "applicable_items": "RANGED",
+      "mechanic": "tracking_v1",
+      "actions": {},
+      "tracking": {
+        "radius": [
+          2.0
+        ],
+        "max_turn_degrees": 30
+      }
+    },
+    "line": "{arrow_rain.arrows}",
+    "expect": "{arrow_rain.arrows}",
+    "unresolved": [
+      "{arrow_rain.arrows}"
+    ],
+    "note": "机制段只在 mechanic 标记匹配时可引用"
+  },
+  {
+    "enchant": {
+      "name": "箭雨",
+      "max_level": 5,
+      "anvil_cost": 2,
+      "applicable_items": "BOW",
+      "mechanic": "landing_arrow_rain_v1",
+      "actions": {}
+    },
+    "line": "{arrow_rain.arrows@max} 支",
+    "expect": "128 支",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "箭雨",
+      "max_level": 5,
+      "anvil_cost": 2,
+      "applicable_items": "BOW",
+      "mechanic": "landing_arrow_rain_v1",
+      "actions": {}
+    },
+    "line": "半径 {arrow_rain.radius@3}",
+    "expect": "半径 3.5",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "箭雨",
+      "max_level": 5,
+      "anvil_cost": 2,
+      "applicable_items": "BOW",
+      "mechanic": "landing_arrow_rain_v1",
+      "actions": {}
+    },
+    "line": "{arrow_rain.release_ticks@2|s} 秒",
+    "expect": "2 秒",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "箭雨",
+      "max_level": 5,
+      "anvil_cost": 2,
+      "applicable_items": "BOW",
+      "mechanic": "landing_arrow_rain_v1",
+      "actions": {}
+    },
+    "line": "{arrow_rain.trail.count}",
+    "expect": "2",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "箭雨",
+      "max_level": 5,
+      "anvil_cost": 2,
+      "applicable_items": "BOW",
+      "mechanic": "landing_arrow_rain_v1",
+      "actions": {}
+    },
+    "line": "{tracking.radius}",
+    "expect": "{tracking.radius}",
+    "unresolved": [
+      "{tracking.radius}"
+    ]
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.a.amount|2}",
+    "expect": "1.01",
+    "unresolved": [],
+    "note": "十进制四舍五入（1.005 → 1.01，不是二进制的 1.00）"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.a.amount}",
+    "expect": "1.01",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.b.amount@2|2}",
+    "expect": "-0.13",
+    "unresolved": [],
+    "note": "-0.125 四舍五入远离零"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.b.amount|%|0}",
+    "expect": "13%",
+    "unresolved": [],
+    "note": "12.5 → 13"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.c.power@step}",
+    "expect": "0",
+    "unresolved": [],
+    "note": "{scaling: fixed} 的 step 为 0"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.c.on_ground}",
+    "expect": "false",
+    "unresolved": [],
+    "note": "按别名 onGround 取值"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.c.vertical_scale|3}",
+    "expect": "0.250",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.a.max_fraction|%}",
+    "expect": "100%",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.d.duration@2}",
+    "expect": "12",
+    "unresolved": [],
+    "note": "整数参数按插件实际的 (int) 截断：12.5 → 12"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.d.duration@step}",
+    "expect": "2.5",
+    "unresolved": [],
+    "note": "step 不截断"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.e.conditions.low_health}",
+    "expect": "6.5",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{actions.e.conditions.night_start|s}",
+    "expect": "650",
+    "unresolved": [],
+    "note": "tick → 秒"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{cooldown|s}",
+    "expect": "0",
+    "unresolved": [],
+    "note": "没写的 cooldown 取默认 0"
+  },
+  {
+    "enchant": {
+      "name": "测试",
+      "max_level": 2,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "actions": {
+        "a": {
+          "type": "healthsteal",
+          "amount": 1.005
+        },
+        "b": {
+          "type": "healthsteal",
+          "amount": {
+            "base": 0.125,
+            "per_level": -0.25
+          }
+        },
+        "c": {
+          "type": "velocity",
+          "direction": "UP",
+          "power": {
+            "scaling": "fixed",
+            "value": 2.5
+          },
+          "onGround": false
+        },
+        "d": {
+          "type": "potion_effect",
+          "effect": "speed",
+          "duration": {
+            "base": 10,
+            "per_level": 2.5
+          },
+          "amplifier": 1
+        },
+        "e": {
+          "type": "bonus_damage",
+          "amount": 2,
+          "conditions": {
+            "low_health": 6.5
+          }
+        }
+      }
+    },
+    "line": "{enchanting_table.chance}",
+    "expect": "0",
+    "unresolved": []
+  },
+  {
+    "enchant": {
+      "name": "旧写法",
+      "max_level": 1,
+      "anvil_cost": 1,
+      "applicable_items": "BOW",
+      "enchanting_table_chance": 0.05,
+      "actions": {}
+    },
+    "line": "{enchanting_table.chance|%}",
+    "expect": "5%",
+    "unresolved": [],
+    "note": "旧写法 enchanting_table_chance"
+  }
+]
