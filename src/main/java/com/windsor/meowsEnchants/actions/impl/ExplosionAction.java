@@ -3,7 +3,7 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.listeners.ProjectileListener;
 import com.windsor.meowsEnchants.utils.SkylliaCompatibility;
 import org.bukkit.Location;
@@ -17,18 +17,19 @@ import java.util.List;
 import java.util.Map;
 
 public class ExplosionAction implements Action {
+    public static final Param<ScalingFunction> POWER = Param.scalableNumber("power", "爆炸威力")
+            .help("原版爆炸威力（TNT 为 4，闪电苦力怕为 6）；弹射物命中触发时在命中点爆炸").min(0).warnAbove(6).required().build();
+    public static final Param<Boolean> FIRE = Param.bool("fire", "引燃").def(false).build();
+    public static final Param<Boolean> BREAK_BLOCKS = Param.bool("break_blocks", "破坏方块").def(false).build();
+    public static final List<Param<?>> PARAMS = List.of(POWER, FIRE, BREAK_BLOCKS);
     private final ScalingFunction power;
     private final boolean fire;
     private final boolean breakBlocks;
 
     public ExplosionAction(Map<String, Object> params) {
-        Object powerObj = params.get("power");
-        if (powerObj == null) {
-            throw new IllegalArgumentException("Missing 'power' parameter for explosion action");
-        }
-        this.power = ScalingFunctionLoader.load(powerObj);
-        this.fire = params.containsKey("fire") && (boolean) params.get("fire");
-        this.breakBlocks = params.containsKey("break_blocks") && (boolean) params.get("break_blocks");
+        this.power = POWER.read(params);
+        this.fire = FIRE.read(params);
+        this.breakBlocks = BREAK_BLOCKS.read(params);
     }
 
     @Override

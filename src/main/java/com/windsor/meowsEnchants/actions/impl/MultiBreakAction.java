@@ -3,7 +3,7 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.listeners.EnchantTriggerHelper;
 import com.windsor.meowsEnchants.utils.SkylliaCompatibility;
 import org.bukkit.Bukkit;
@@ -20,35 +20,41 @@ import org.bukkit.inventory.ItemStack;
 import java.util.*;
 
 public class MultiBreakAction implements Action {
+    public static final Param<ScalingFunction> RADIUS = Param.scalableInt("radius", "半径")
+            .help("以被挖方块为中心的立方体（含上下）半径，截断为整数；0 或负数不生效").unit(Param.Unit.BLOCK)
+            .min(0).warnAbove(2).required().build();
+    public static final Param<Boolean> MATCH_TOOL = Param.bool("match_tool", "只挖对应工具的方块")
+            .help("true 时只破坏手中工具适合挖掘的方块（镐/锹/斧/锄的可挖掘标签）").def(false).build();
+    public static final Param<List<String>> EXCLUDE = Param.stringList("exclude", "排除状态")
+            .help("玩家处于其中任一状态时整次跳过：sneaking、sprinting、swimming、flying、gliding（不分大小写）")
+            .def(List.of()).build();
+    public static final Param<Integer> DURABILITY_PER_BLOCK = Param.integer("durability_per_block", "每块耗损耐久")
+            .help("每多破坏一个方块扣工具的耐久（受耐久附魔影响）").min(0).def(2).build();
+    public static final Param<Boolean> SNEAKING = Param.bool("sneaking", "需要潜行").def(false).build();
+    public static final Param<Map<String, Object>> CONDITIONS = Param.section("conditions", "条件", SNEAKING).build();
+    public static final List<Param<?>> PARAMS = List.of(RADIUS, MATCH_TOOL, EXCLUDE, DURABILITY_PER_BLOCK, CONDITIONS);
+
     private final ScalingFunction radius;
     private final Set<String> excludeStates;
     private final boolean sneakingRequired;
     private final boolean matchTool;
+    private final int durabilityPerBlock;
 
     // 线程本地标志，防止递归
     private static final ThreadLocal<Boolean> processing = ThreadLocal.withInitial(() -> false);
 
     public MultiBreakAction(Map<String, Object> params) {
-        Object radiusObj = params.get("radius");
-        if (radiusObj == null) {
-            throw new IllegalArgumentException("Missing 'radius' parameter for multi_break action");
-        }
-        this.radius = ScalingFunctionLoader.load(radiusObj);
+        this.radius = RADIUS.read(params);
 
         this.excludeStates = new HashSet<>();
-        Object excludeObj = params.get("exclude");
-        if (excludeObj instanceof List) {
-            for (Object o : (List<?>) excludeObj) {
-                if (o instanceof String) {
-                    excludeStates.add(((String) o).toLowerCase());
-                }
-            }
+        for (String state : EXCLUDE.read(params)) {
+            excludeStates.add(state.toLowerCase());
         }
 
-        Map<String, Object> conditions = (Map<String, Object>) params.get("conditions");
-        this.sneakingRequired = conditions != null && conditions.containsKey("sneaking") && (boolean) conditions.get("sneaking");
+        this.sneakingRequired = SNEAKING.read(CONDITIONS.read(params));
 
-        this.matchTool = params.containsKey("match_tool") && (boolean) params.get("match_tool");
+        this.matchTool = MATCH_TOOL.read(params);
+        this.durabilityPerBlock = DURABILITY_PER_BLOCK.read(params);
     }
 
     @Override
@@ -152,8 +158,8 @@ public class MultiBreakAction implements Action {
                             }
                         }
                         block.setType(Material.AIR);
-                        if (tool.getType().getMaxDurability() > 0) {
-                            tool.damage(2, player);
+                        if (durabilityPerBlock > 0 && tool.getType().getMaxDurability() > 0) {
+                            tool.damage(durabilityPerBlock, player);
                         }
 
                         anyBroken = true;

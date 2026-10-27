@@ -44,7 +44,8 @@ public final class AutoBowManager {
                 enchantKey,
                 action.isRefire(),
                 action.getRefireDelay(),
-                action.getMaxShots()
+                action.getMaxShots(),
+                action.getFullDrawTicks()
         );
         SESSIONS.put(player.getUniqueId(), session);
 
@@ -86,7 +87,7 @@ public final class AutoBowManager {
         }
 
         int used = player.getActiveItemUsedTime();
-        if (AutoBowAction.powerForTicks(used) < 1.0) {
+        if (AutoBowAction.powerForTicks(used, session.fullDrawTicks) < 1.0) {
             return; // 还没拉满
         }
         if (session.maxShots > 0 && session.shots >= session.maxShots) {
@@ -176,6 +177,7 @@ public final class AutoBowManager {
         private final boolean refire;
         private final int refireDelay;
         private final int maxShots;
+        private final int fullDrawTicks;
 
         private SchedulerCompat.Task task;
         private int shots;
@@ -183,11 +185,12 @@ public final class AutoBowManager {
         private boolean firing;
         private boolean clientStopped;
 
-        private Session(Key enchantKey, boolean refire, int refireDelay, int maxShots) {
+        private Session(Key enchantKey, boolean refire, int refireDelay, int maxShots, int fullDrawTicks) {
             this.enchantKey = enchantKey;
             this.refire = refire;
             this.refireDelay = refireDelay;
             this.maxShots = maxShots;
+            this.fullDrawTicks = fullDrawTicks;
         }
     }
 }

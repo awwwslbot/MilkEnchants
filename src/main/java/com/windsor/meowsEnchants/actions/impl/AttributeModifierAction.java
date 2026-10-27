@@ -3,7 +3,7 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
@@ -11,9 +11,25 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.List;
 import java.util.Map;
 
 public class AttributeModifierAction implements Action {
+    public static final Param<String> ATTRIBUTE = Param.registry("attribute", "属性", Param.Registry.ATTRIBUTE)
+            .help("原版属性名（minecraft 命名空间，不分大小写），如 movement_speed、scale").required().build();
+    public static final Param<ScalingFunction> AMOUNT = Param.scalableNumber("amount", "数值")
+            .help("修饰符数值；为 0 时不添加修饰符").required().build();
+    public static final Param<String> OPERATION = Param.enumeration("operation", "运算方式",
+                    List.of("ADD_NUMBER", "ADD_SCALAR", "MULTIPLY_SCALAR_1"))
+            .help("ADD_NUMBER 直接加；ADD_SCALAR 按基础值比例加；MULTIPLY_SCALAR_1 按总值乘 (1+数值)").required().build();
+    public static final Param<String> KEY = Param.string("key", "修饰符键")
+            .help("写进物品的修饰符键为 attr_<附魔>_<key>；同一附魔内唯一").required()
+            .danger("改名后旧修饰符按旧键留在已有物品上，会和新修饰符叠加；只在新建动作时填写，之后不要改").build();
+    public static final Param<Boolean> EQUIPPED = Param.bool("equipped", "仅穿戴时生效")
+            .help("true 时修饰符槽位组为盔甲（ARMOR）；false 时为任意槽位（ANY），拿在手上也生效").def(false).build();
+    public static final Param<Map<String, Object>> CONDITIONS = Param.section("conditions", "条件", EQUIPPED).build();
+    public static final List<Param<?>> PARAMS = List.of(ATTRIBUTE, AMOUNT, OPERATION, KEY, CONDITIONS);
+
     private final Attribute attribute;
     private final ScalingFunction amount;
     private final AttributeModifier.Operation operation;
@@ -21,10 +37,7 @@ public class AttributeModifierAction implements Action {
     private final boolean equipped;
 
     public AttributeModifierAction(Map<String, Object> params) {
-        String attrName = (String) params.get("attribute");
-        if (attrName == null) {
-            throw new IllegalArgumentException("Missing 'attribute' parameter");
-        }
+        String attrName = ATTRIBUTE.read(params);
         NamespacedKey attrKey = NamespacedKey.minecraft(attrName.toLowerCase());
         Attribute attr = Registry.ATTRIBUTE.get(attrKey);
         if (attr == null) {
@@ -32,28 +45,13 @@ public class AttributeModifierAction implements Action {
         }
         this.attribute = attr;
 
-        Object amountObj = params.get("amount");
-        if (amountObj == null) {
-            throw new IllegalArgumentException("Missing 'amount' parameter");
-        }
-        this.amount = ScalingFunctionLoader.load(amountObj);
-
-        String opStr = (String) params.get("operation");
-        if (opStr == null) {
-            throw new IllegalArgumentException("Missing 'operation' parameter");
-        }
-        this.operation = getOperation(opStr);
-
-        this.key = (String) params.get("key");
-        if (this.key == null) {
-            throw new IllegalArgumentException("Missing 'key' parameter");
-        }
-
-        Map<String, Object> conditions = (Map<String, Object>) params.get("conditions");
-        this.equipped = conditions != null && conditions.containsKey("equipped") && (boolean) conditions.get("equipped");
+        this.amount = AMOUNT.read(params);
+        this.operation = getOperation(OPERATION.read(params));
+        this.key = KEY.read(params);
+        this.equipped = EQUIPPED.read(CONDITIONS.read(params));
     }
 
-    private AttributeModifier.Operation getOperation(String op) {
+    static AttributeModifier.Operation getOperation(String op) {
         return switch (op.toUpperCase()) {
             case "ADD_NUMBER" -> AttributeModifier.Operation.ADD_NUMBER;
             case "ADD_SCALAR" -> AttributeModifier.Operation.ADD_SCALAR;

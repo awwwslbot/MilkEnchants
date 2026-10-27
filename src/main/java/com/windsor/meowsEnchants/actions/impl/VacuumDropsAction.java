@@ -2,11 +2,14 @@ package com.windsor.meowsEnchants.actions.impl;
 
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
+import com.windsor.meowsEnchants.schema.Param;
 import org.bukkit.event.block.BlockBreakEvent;
 
+import java.util.List;
 import java.util.Map;
 
 public class VacuumDropsAction implements Action {
+    public static final List<Param<?>> PARAMS = List.of();
 
     public VacuumDropsAction(Map<String, Object> params) {
         // 无参数

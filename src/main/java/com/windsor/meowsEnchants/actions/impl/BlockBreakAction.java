@@ -2,6 +2,7 @@ package com.windsor.meowsEnchants.actions.impl;
 
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.listeners.EnchantTriggerHelper;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -16,42 +17,46 @@ import org.bukkit.inventory.meta.Damageable;
 import java.util.*;
 
 public class BlockBreakAction implements Action {
+    public static final Param<List<String>> TARGET_TYPES = Param.stringList("target_types", "可破坏方块")
+            .help("方块材质名（如 GLASS）、方块标签（含冒号，如 minecraft:impermeable）或 includes:片段（材质名包含该片段）；不写不限")
+            .def(List.of()).build();
+    public static final Param<Boolean> SNEAKING = Param.bool("sneaking", "需要潜行").def(false).build();
+    public static final Param<Map<String, Object>> CONDITIONS = Param.section("conditions", "条件", SNEAKING).build();
+    public static final Param<Integer> DURABILITY = Param.integer("durability", "耗损耐久")
+            .help("每破坏一个方块扣工具的耐久（受耐久附魔影响）").min(0).def(1).build();
+    public static final List<Param<?>> PARAMS = List.of(TARGET_TYPES, DURABILITY, CONDITIONS);
+
     private final boolean sneakingRequired;
     private final Set<Material> targetTypes;
     private final Set<String> targetTags;
     private final List<String> includesPatterns;
+    private final int durability;
 
     public BlockBreakAction(Map<String, Object> params) {
-        Map<String, Object> conditions = (Map<String, Object>) params.get("conditions");
-        this.sneakingRequired = conditions != null && conditions.containsKey("sneaking") && (boolean) conditions.get("sneaking");
+        this.sneakingRequired = SNEAKING.read(CONDITIONS.read(params));
+        this.durability = DURABILITY.read(params);
 
         targetTypes = new HashSet<>();
         targetTags = new HashSet<>();
         includesPatterns = new ArrayList<>();
 
-        Object targetList = params.get("target_types");
-        if (targetList instanceof List) {
-            for (Object o : (List<?>) targetList) {
-                if (o instanceof String) {
-                    String str = (String) o;
-                    if (str.toLowerCase().startsWith("includes:")) {
-                        includesPatterns.add(str.substring("includes:".length()).toLowerCase());
-                        continue;
-                    }
-                    Material mat = Material.getMaterial(str.toUpperCase());
-                    if (mat != null) {
-                        targetTypes.add(mat);
-                        continue;
-                    }
-                    if (str.contains(":")) {
-                        targetTags.add(str);
-                    } else {
-                        try {
-                            mat = Material.valueOf(str.toUpperCase());
-                            targetTypes.add(mat);
-                        } catch (IllegalArgumentException ignored) {}
-                    }
-                }
+        for (String str : TARGET_TYPES.read(params)) {
+            if (str.toLowerCase().startsWith("includes:")) {
+                includesPatterns.add(str.substring("includes:".length()).toLowerCase());
+                continue;
+            }
+            Material mat = Material.getMaterial(str.toUpperCase());
+            if (mat != null) {
+                targetTypes.add(mat);
+                continue;
+            }
+            if (str.contains(":")) {
+                targetTags.add(str);
+            } else {
+                try {
+                    mat = Material.valueOf(str.toUpperCase());
+                    targetTypes.add(mat);
+                } catch (IllegalArgumentException ignored) {}
             }
         }
     }
@@ -145,9 +150,9 @@ public class BlockBreakAction implements Action {
         targetBlock.setType(Material.AIR);
 
         // 消耗工具耐久（每次破坏消耗1点，受 Unbreaking 附魔影响）
-        if (tool != null && tool.getType().getMaxDurability() > 0) {
+        if (durability > 0 && tool != null && tool.getType().getMaxDurability() > 0) {
             if (tool.getItemMeta() instanceof Damageable) {
-                tool.damage(1, player);
+                tool.damage(durability, player);
             }
         }
 

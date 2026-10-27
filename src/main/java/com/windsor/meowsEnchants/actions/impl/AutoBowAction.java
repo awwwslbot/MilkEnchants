@@ -2,6 +2,7 @@ package com.windsor.meowsEnchants.actions.impl;
 
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.listeners.AutoBowManager;
 import com.windsor.meowsEnchants.listeners.EnchantTriggerHelper;
 import net.kyori.adventure.key.Key;
@@ -10,6 +11,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,17 +23,27 @@ import java.util.Map;
  * Infinity、Power/Punch/Flame 附魔以及 {@code EntityShootBowEvent}。
  */
 public class AutoBowAction implements Action {
-
-    private static final int VANILLA_FULL_DRAW_TICKS = 20;
+    public static final Param<Boolean> REFIRE = Param.bool("refire", "自动续射")
+            .help("发射后自动重新开始拉弓").def(true).build();
+    public static final Param<Integer> REFIRE_DELAY = Param.integer("refire_delay", "续射间隔")
+            .help("两次发射之间等待的 tick").unit(Param.Unit.TICK).min(0).def(0).build();
+    public static final Param<Integer> MAX_SHOTS = Param.integer("max_shots", "最多连射次数")
+            .help("0 = 不限，直到松开右键").unit(Param.Unit.COUNT).min(0).def(0).build();
+    public static final Param<Integer> FULL_DRAW_TICKS = Param.integer("full_draw_ticks", "满蓄力判定")
+            .help("实际蓄力达到这么多 tick 才自动发射（原版弓 20 tick 满弓；更小会提前发射，箭速按实际蓄力算）")
+            .unit(Param.Unit.TICK).min(1).def(20).build();
+    public static final List<Param<?>> PARAMS = List.of(REFIRE, REFIRE_DELAY, MAX_SHOTS, FULL_DRAW_TICKS);
 
     private final boolean refire;
     private final int refireDelay;
     private final int maxShots;
+    private final int fullDrawTicks;
 
     public AutoBowAction(Map<String, Object> params) {
-        this.refire = !Boolean.FALSE.equals(params.get("refire"));
-        this.refireDelay = Math.max(0, getInt(params.get("refire_delay"), 0));
-        this.maxShots = Math.max(0, getInt(params.get("max_shots"), 0));
+        this.refire = REFIRE.read(params);
+        this.refireDelay = Math.max(0, REFIRE_DELAY.read(params));
+        this.maxShots = Math.max(0, MAX_SHOTS.read(params));
+        this.fullDrawTicks = Math.max(1, FULL_DRAW_TICKS.read(params));
     }
 
     @Override
@@ -59,9 +71,9 @@ public class AutoBowAction implements Action {
         return true;
     }
 
-    /** 原版弓的 power 曲线，ticks 为实际蓄力 tick。 */
-    public static double powerForTicks(int ticks) {
-        double t = ticks / (double) VANILLA_FULL_DRAW_TICKS;
+    /** 原版弓的 power 曲线，ticks 为实际蓄力 tick，fullDrawTicks 为满弓所需 tick（原版 20）。 */
+    public static double powerForTicks(int ticks, int fullDrawTicks) {
+        double t = ticks / (double) fullDrawTicks;
         double power = (t * t + 2.0 * t) / 3.0;
         return Math.min(1.0, Math.max(0.0, power));
     }
@@ -70,10 +82,6 @@ public class AutoBowAction implements Action {
         return item != null
                 && item.getType() == Material.BOW
                 && EnchantTriggerHelper.getCustomEnchantsOnItem(item).contains(enchantKey);
-    }
-
-    private static int getInt(Object value, int fallback) {
-        return value instanceof Number number ? number.intValue() : fallback;
     }
 
     public boolean isRefire() {
@@ -86,5 +94,9 @@ public class AutoBowAction implements Action {
 
     public int getMaxShots() {
         return maxShots;
+    }
+
+    public int getFullDrawTicks() {
+        return fullDrawTicks;
     }
 }

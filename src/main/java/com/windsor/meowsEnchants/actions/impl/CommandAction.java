@@ -2,6 +2,7 @@ package com.windsor.meowsEnchants.actions.impl;
 
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.utils.PlaceholderAPIHook;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
@@ -12,18 +13,18 @@ import java.util.List;
 import java.util.Map;
 
 public class CommandAction implements Action {
+    public static final Param<String> COMMAND = Param.string("command", "命令")
+            .help("支持 {player}、{target}、{level} 和 PlaceholderAPI 占位符").required().build();
+    public static final Param<String> RUN_AS = Param.enumeration("run_as", "执行者", List.of("PLAYER", "CONSOLE"))
+            .def("PLAYER").build();
+    /** 不进 schema：编辑器不开放 command 动作。 */
+    public static final List<Param<?>> PARAMS = List.of(COMMAND, RUN_AS);
     private final String command;
     private final boolean runAsConsole;
 
     public CommandAction(Map<String, Object> params) {
-        Object cmdObj = params.get("command");
-        if (cmdObj == null) {
-            throw new IllegalArgumentException("Missing 'command' parameter for command action");
-        }
-        this.command = cmdObj.toString();
-
-        String runAs = params.containsKey("run_as") ? params.get("run_as").toString().toUpperCase() : "PLAYER";
-        this.runAsConsole = "CONSOLE".equalsIgnoreCase(runAs);
+        this.command = COMMAND.read(params);
+        this.runAsConsole = "CONSOLE".equalsIgnoreCase(RUN_AS.read(params));
     }
 
     @Override

@@ -3,7 +3,7 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -19,15 +19,14 @@ import java.util.Random;
  * 伤害值受 Unbreaking 附魔影响（通过 ItemStack#damage 方法）。
  */
 public class BreakArmorAction implements Action {
+    public static final Param<ScalingFunction> DAMAGE = Param.scalableInt("damage", "耐久伤害")
+            .help("对目标玩家随机一件盔甲造成的耐久损耗，截断为整数，受耐久附魔影响").min(0).required().build();
+    public static final List<Param<?>> PARAMS = List.of(DAMAGE);
     private final ScalingFunction damage;
     private static final Random RANDOM = new Random();
 
     public BreakArmorAction(Map<String, Object> params) {
-        Object damageObj = params.get("damage");
-        if (damageObj == null) {
-            throw new IllegalArgumentException("Missing 'damage' parameter for break_armor action");
-        }
-        this.damage = ScalingFunctionLoader.load(damageObj);
+        this.damage = DAMAGE.read(params);
     }
 
     @Override

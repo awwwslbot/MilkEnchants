@@ -3,8 +3,8 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
 import com.windsor.meowsEnchants.config.EnchantConfig;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.utils.SkylliaCompatibility;
 import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
@@ -47,6 +47,36 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class TillAction implements Action {
 
+    public static final Param<ScalingFunction> RADIUS = Param.scalableInt("radius", "半径")
+            .help("以点击方块为中心、同一高度的正方形半径，截断为整数；0 = 只转换点击的方块").unit(Param.Unit.BLOCK)
+            .min(0).warnAbove(4).required().build();
+    public static final Param<Map<String, Object>> TRANSFORMS = Param.map("transforms", "转换表",
+                    Param.string("*", "目标方块")
+                            .help("键是源方块（可带 [状态] 子集匹配，或 #标签），值是目标方块（可带 [same] 拷贝同名状态和 [属性=值] 覆盖）")
+                            .build())
+            .help("源方块 → 目标方块；inherit_defaults 为 true 时并入原版耕地表（泥土类 → 耕地/泥土）").build();
+    public static final Param<Boolean> INHERIT_DEFAULTS = Param.bool("inherit_defaults", "并入原版耕地表")
+            .help("泥土、草方块、灰化土、菌丝 → 耕地；砂土、缠根泥土 → 泥土").def(true).build();
+    public static final Param<List<String>> REQUIRE_ITEM_TYPES = Param.registryList("require_item_types", "限定工具",
+                    Param.Registry.ITEM)
+            .help("主手物品必须是其中之一；和 require_item_tags 都没写时，物品名含 HOE（锄头）才生效").acceptSingle().build();
+    public static final Param<List<String>> REQUIRE_ITEM_TAGS = Param.stringList("require_item_tags", "限定工具标签")
+            .help("物品标签，如 minecraft:hoes 或 #minecraft:hoes").acceptSingle().build();
+    public static final Param<Boolean> CONSUME_DURABILITY = Param.bool("consume_durability", "消耗耐久")
+            .help("每转换一个方块扣工具 durability_per_block 点耐久（受耐久附魔影响）").def(true).build();
+    public static final Param<Integer> DURABILITY_PER_BLOCK = Param.integer("durability_per_block", "每块耗损耐久")
+            .min(0).def(1).build();
+    public static final Param<Boolean> PROTECTION_CHECK = Param.bool("protection_check", "领地保护检查")
+            .help("每个方块先发一次右键事件，被保护插件取消的方块跳过").def(true).build();
+    public static final Param<Boolean> CANCEL_VANILLA = Param.bool("cancel_vanilla", "拦截原版右键")
+            .help("点击的方块在表里或发生了转换时取消原版右键，避免重复处理").def(true).build();
+    public static final Param<Boolean> DROP_ROOTS = Param.bool("drop_roots", "缠根泥土掉落根")
+            .help("缠根泥土被转换时掉落垂根（与原版一致）").def(true).build();
+    public static final Param<Boolean> APPLY_PHYSICS = Param.bool("apply_physics", "触发方块更新").def(true).build();
+    public static final List<Param<?>> PARAMS = List.of(RADIUS, TRANSFORMS, INHERIT_DEFAULTS, REQUIRE_ITEM_TYPES,
+            REQUIRE_ITEM_TAGS, CONSUME_DURABILITY, DURABILITY_PER_BLOCK, PROTECTION_CHECK, CANCEL_VANILLA, DROP_ROOTS,
+            APPLY_PHYSICS);
+
     /** 不写 transforms 时使用的默认表，保持与旧版本行为一致。 */
     private static final Map<Material, Material> VANILLA_TRANSFORMS;
 
@@ -79,6 +109,7 @@ public class TillAction implements Action {
     private final Set<Material> requiredItemTypes;
     private final boolean useLegacyHoeCheck;
     private final boolean consumeDurability;
+    private final int durabilityPerBlock;
     private final boolean protectionCheck;
     private final boolean cancelVanilla;
     private final boolean dropRoots;
@@ -87,23 +118,20 @@ public class TillAction implements Action {
     private static final ThreadLocal<Boolean> processing = ThreadLocal.withInitial(() -> false);
 
     public TillAction(Map<String, Object> params) {
-        Object radiusObj = params.get("radius");
-        if (radiusObj == null) {
-            throw new IllegalArgumentException("Missing 'radius' parameter for till action");
-        }
-        this.radius = ScalingFunctionLoader.load(radiusObj);
+        this.radius = RADIUS.read(params);
 
         this.rules = loadTransforms(params).byMaterial();
 
         this.requiredItemTypes = resolveRequiredItemTypes(params);
-        this.useLegacyHoeCheck = !params.containsKey("require_item_types")
-                && !params.containsKey("require_item_tags");
+        this.useLegacyHoeCheck = !params.containsKey(REQUIRE_ITEM_TYPES.key())
+                && !params.containsKey(REQUIRE_ITEM_TAGS.key());
 
-        this.consumeDurability = !Boolean.FALSE.equals(params.get("consume_durability"));
-        this.protectionCheck = !Boolean.FALSE.equals(params.get("protection_check"));
-        this.cancelVanilla = !Boolean.FALSE.equals(params.get("cancel_vanilla"));
-        this.dropRoots = !Boolean.FALSE.equals(params.get("drop_roots"));
-        this.applyPhysics = !Boolean.FALSE.equals(params.get("apply_physics"));
+        this.consumeDurability = CONSUME_DURABILITY.read(params);
+        this.durabilityPerBlock = DURABILITY_PER_BLOCK.read(params);
+        this.protectionCheck = PROTECTION_CHECK.read(params);
+        this.cancelVanilla = CANCEL_VANILLA.read(params);
+        this.dropRoots = DROP_ROOTS.read(params);
+        this.applyPhysics = APPLY_PHYSICS.read(params);
     }
 
     public static boolean isProcessing() {
@@ -181,7 +209,7 @@ public class TillAction implements Action {
                     block.setBlockData(result, applyPhysics);
                     changed = true;
 
-                    if (consumeDurability) {
+                    if (consumeDurability && durabilityPerBlock > 0) {
                         damageTool(tool, player);
                     }
                     // 缠根泥土掉落根（与原版一致）
@@ -242,7 +270,7 @@ public class TillAction implements Action {
     private void damageTool(ItemStack tool, Player player) {
         if (tool == null || tool.getType().isAir()) return;
         if (!(tool.getItemMeta() instanceof Damageable)) return;
-        tool.damage(1, player);
+        tool.damage(durabilityPerBlock, player);
     }
 
     // ------------------------------------------------------------------
@@ -256,8 +284,8 @@ public class TillAction implements Action {
 
     private static String transformCacheKey(Map<String, Object> params) {
         StringBuilder sb = new StringBuilder();
-        sb.append(Boolean.FALSE.equals(params.get("inherit_defaults")) ? "0" : "1");
-        Object raw = params.get("transforms");
+        sb.append(INHERIT_DEFAULTS.read(params) ? "1" : "0");
+        Object raw = TRANSFORMS.raw(params);
         if (raw instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 sb.append('|').append(entry.getKey()).append('=').append(entry.getValue());
@@ -270,14 +298,14 @@ public class TillAction implements Action {
         List<Rule> all = new ArrayList<>();
 
         int index = 0;
-        if (!Boolean.FALSE.equals(params.get("inherit_defaults"))) {
+        if (INHERIT_DEFAULTS.read(params)) {
             for (Map.Entry<Material, Material> entry : VANILLA_TRANSFORMS.entrySet()) {
                 TargetSpec target = new TargetSpec(entry.getValue(), false, Map.of());
                 all.add(new Rule(entry.getKey(), Map.of(), target, false, index++));
             }
         }
 
-        Object raw = params.get("transforms");
+        Object raw = TRANSFORMS.raw(params);
         if (raw instanceof Map<?, ?> map) {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 String fromSpec = String.valueOf(entry.getKey());
@@ -570,7 +598,7 @@ public class TillAction implements Action {
     private static Set<Material> resolveRequiredItemTypes(Map<String, Object> params) {
         Set<Material> result = new LinkedHashSet<>();
 
-        for (Object value : asList(params.get("require_item_types"))) {
+        for (Object value : asList(params.get(REQUIRE_ITEM_TYPES.key()))) {
             Material material = Material.matchMaterial(String.valueOf(value));
             if (material == null) {
                 throw new IllegalArgumentException("Unknown item type in require_item_types: " + value);
@@ -578,7 +606,7 @@ public class TillAction implements Action {
             result.add(material);
         }
 
-        for (Object value : asList(params.get("require_item_tags"))) {
+        for (Object value : asList(params.get(REQUIRE_ITEM_TAGS.key()))) {
             result.addAll(resolveItemTag(String.valueOf(value)));
         }
 

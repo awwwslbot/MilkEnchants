@@ -3,24 +3,36 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.utils.SkylliaCompatibility;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import java.util.List;
 import java.util.Map;
 
 public class TeleportAction implements Action {
+    public static final Param<ScalingFunction> RANGE = Param.scalableNumber("range", "最大距离")
+            .help("沿视线方向的最远传送距离，从最远处往回找安全落点").unit(Param.Unit.BLOCK).min(0).required().build();
+    public static final Param<Double> STEP = Param.number("step", "回退步长")
+            .help("找不到落点时每次往回退的距离").unit(Param.Unit.BLOCK).min(0.1).def(1.0).build();
+    public static final Param<Double> MIN_DISTANCE = Param.number("min_distance", "最短距离")
+            .help("回退到比它更近时放弃传送").unit(Param.Unit.BLOCK).min(0).def(0.5).build();
+    public static final Param<Integer> GROUND_SEARCH_DEPTH = Param.integer("ground_search_depth", "落脚搜索深度")
+            .help("落点下方多少格内要有可站立的方块").unit(Param.Unit.BLOCK).min(0).def(4).build();
+    public static final List<Param<?>> PARAMS = List.of(RANGE, STEP, MIN_DISTANCE, GROUND_SEARCH_DEPTH);
     private final ScalingFunction range;
+    private final double step;
+    private final double minDistance;
+    private final int groundSearchDepth;
 
     public TeleportAction(Map<String, Object> params) {
-        Object rangeObj = params.get("range");
-        if (rangeObj == null) {
-            throw new IllegalArgumentException("Missing 'range' parameter for teleport action");
-        }
-        this.range = ScalingFunctionLoader.load(rangeObj);
+        this.range = RANGE.read(params);
+        this.step = Math.max(0.1, STEP.read(params));
+        this.minDistance = MIN_DISTANCE.read(params);
+        this.groundSearchDepth = GROUND_SEARCH_DEPTH.read(params);
     }
 
     @Override
@@ -52,7 +64,7 @@ public class TeleportAction implements Action {
         double limitedRange = SkylliaCompatibility.limitHorizontalDistanceToRegion(start, dx, dz, maxRange);
 
         Location finalLoc = null;
-        for (double dist = limitedRange; dist >= 0.5; dist -= 1.0) {
+        for (double dist = limitedRange; dist >= minDistance; dist -= step) {
             double targetX = startX + dx * dist;
             double targetY = startY + dy * dist;
             double targetZ = startZ + dz * dist;
@@ -76,7 +88,7 @@ public class TeleportAction implements Action {
         int baseX = loc.getBlockX();
         int baseZ = loc.getBlockZ();
         int baseY = loc.getBlockY();
-        for (int yOffset = 0; yOffset <= 4; yOffset++) {
+        for (int yOffset = 0; yOffset <= groundSearchDepth; yOffset++) {
             int checkY = baseY - yOffset;
             if (checkY < world.getMinHeight()) continue;
             if (!world.getBlockAt(baseX, checkY, baseZ).isPassable()) return true;

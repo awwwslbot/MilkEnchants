@@ -3,7 +3,7 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.utils.SchedulerCompat;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
@@ -15,6 +15,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.util.Vector;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -25,26 +26,31 @@ import java.util.Random;
  * 穿透、着火与药水效果，并继承发射所用的武器，从而保留力量、火矢等附魔带来的加成。
  */
 public class MultiArrowAction implements Action {
-
-    private static final double DEFAULT_SPEED = 3.0;
-    private static final double MAX_SPREAD_DEGREES = 60.0;
+    public static final Param<ScalingFunction> EXTRA_ARROWS = Param.scalableInt("extra_arrows", "额外箭数")
+            .help("主箭之后每 tick 再射出一支，截断为整数").unit(Param.Unit.COUNT).min(0).warnAbove(16).required().build();
+    public static final Param<ScalingFunction> SPREAD = Param.scalableNumber("spread", "散射角")
+            .help("额外箭与主箭方向的最大夹角，不超过 max_spread_degrees").unit(Param.Unit.DEGREE).min(0).required().build();
+    public static final Param<Double> MAX_SPREAD = Param.number("max_spread_degrees", "散射角上限")
+            .unit(Param.Unit.DEGREE).range(0, 180).def(60.0).build();
+    public static final Param<Double> DEFAULT_SPEED = Param.number("default_speed", "默认箭速")
+            .help("取不到原始箭速度时（非射击事件触发）使用").min(0).def(3.0).build();
+    public static final Param<Integer> INTERVAL_TICKS = Param.integer("interval_ticks", "连射间隔")
+            .help("第 i 支额外箭在 i × 间隔 tick 后射出").unit(Param.Unit.TICK).min(1).def(1).build();
+    public static final List<Param<?>> PARAMS = List.of(EXTRA_ARROWS, SPREAD, MAX_SPREAD, DEFAULT_SPEED, INTERVAL_TICKS);
 
     private final ScalingFunction extraArrows;
     private final ScalingFunction spread;
+    private final double maxSpread;
+    private final double defaultSpeed;
+    private final int intervalTicks;
     private final Random random = new Random();
 
     public MultiArrowAction(Map<String, Object> params) {
-        Object extraObj = params.get("extra_arrows");
-        if (extraObj == null) {
-            throw new IllegalArgumentException("Missing 'extra_arrows' parameter for multi_arrow action");
-        }
-        this.extraArrows = ScalingFunctionLoader.load(extraObj);
-
-        Object spreadObj = params.get("spread");
-        if (spreadObj == null) {
-            throw new IllegalArgumentException("Missing 'spread' parameter for multi_arrow action");
-        }
-        this.spread = ScalingFunctionLoader.load(spreadObj);
+        this.extraArrows = EXTRA_ARROWS.read(params);
+        this.spread = SPREAD.read(params);
+        this.maxSpread = MAX_SPREAD.read(params);
+        this.defaultSpeed = DEFAULT_SPEED.read(params);
+        this.intervalTicks = Math.max(1, INTERVAL_TICKS.read(params));
     }
 
     @Override
@@ -55,7 +61,7 @@ public class MultiArrowAction implements Action {
         int extraCount = (int) Math.max(0, this.extraArrows.getValue(context.getEnchantLevel()));
         if (extraCount <= 0) return false;
 
-        double spreadDegrees = Math.clamp(this.spread.getValue(context.getEnchantLevel()), 0, MAX_SPREAD_DEGREES);
+        double spreadDegrees = Math.clamp(this.spread.getValue(context.getEnchantLevel()), 0, maxSpread);
 
         Plugin plugin = context.getPlugin();
         if (plugin == null) return false;
@@ -68,7 +74,7 @@ public class MultiArrowAction implements Action {
         }
 
         Vector baseDirection = player.getEyeLocation().getDirection().clone();
-        double speed = DEFAULT_SPEED;
+        double speed = defaultSpeed;
         if (sourceProjectile != null) {
             Vector sourceVelocity = sourceProjectile.getVelocity();
             if (sourceVelocity.lengthSquared() > 1.0E-6) {
@@ -94,7 +100,7 @@ public class MultiArrowAction implements Action {
                 Arrow arrow = player.launchProjectile(Arrow.class, direction.multiply(shotSpeed));
                 arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
                 copyArrowState(source, arrow);
-            }, i + 1L);
+            }, (i + 1L) * intervalTicks);
         }
         return true;
     }

@@ -3,7 +3,7 @@ package com.windsor.meowsEnchants.actions.impl;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
 import com.windsor.meowsEnchants.actions.ScalingFunction;
-import com.windsor.meowsEnchants.actions.ScalingFunctionLoader;
+import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.utils.XpManager;
 import net.kyori.adventure.key.Key;
 import org.bukkit.Material;
@@ -12,22 +12,32 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.Damageable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 public class RepairAction implements Action {
+    public static final Param<ScalingFunction> AMOUNT = Param.scalableNumber("amount", "修复概率")
+            .help("每个周期对每件带此附魔、有损耗的物品掷一次，命中修复 1 点耐久").unit(Param.Unit.RATIO).range(0, 1)
+            .required().build();
+    public static final Param<Boolean> EXP_MODE = Param.bool("exp_mode", "消耗经验")
+            .help("true 时每修 1 点扣 1 点经验，经验不足时停止").def(false).build();
+    public static final Param<Integer> REPAIR_AMOUNT = Param.integer("repair_amount", "每次修复耐久")
+            .help("掷中后修复的耐久点数（不超过已损耗的量）").min(1).def(1).build();
+    public static final Param<Integer> EXP_COST = Param.integer("exp_cost", "每次扣经验")
+            .help("exp_mode 开启时每次修复扣的经验点，经验不足时停止").min(0).def(1).build();
+    public static final List<Param<?>> PARAMS = List.of(AMOUNT, EXP_MODE, REPAIR_AMOUNT, EXP_COST);
     private final ScalingFunction amount;
     private final boolean expMode;
+    private final int repairAmount;
+    private final int expCost;
     private final Random random = new Random();
 
     public RepairAction(Map<String, Object> params) {
-        Object amountObj = params.get("amount");
-        if (amountObj == null) {
-            throw new IllegalArgumentException("Missing 'amount' parameter for repair action");
-        }
-        this.amount = ScalingFunctionLoader.load(amountObj);
-
-        this.expMode = params.containsKey("exp_mode") && (boolean) params.get("exp_mode");
+        this.amount = AMOUNT.read(params);
+        this.expMode = EXP_MODE.read(params);
+        this.repairAmount = Math.max(1, REPAIR_AMOUNT.read(params));
+        this.expCost = Math.max(0, EXP_COST.read(params));
     }
 
     @Override
@@ -66,19 +76,19 @@ public class RepairAction implements Action {
 
             // 经验模式检查（每次修复前检查）
             if (expMode) {
-                if (player.calculateTotalExperiencePoints() < 1) {
+                if (player.calculateTotalExperiencePoints() < expCost) {
                     break; // 经验不足，停止后续所有修复
                 }
             }
 
-            // 修复 1 点耐久
-            meta.setDamage(currentDamage - 1);
+            // 修复 repair_amount 点耐久
+            meta.setDamage(Math.max(0, currentDamage - repairAmount));
             item.setItemMeta(meta);
             anyRepaired = true;
 
             // 扣除经验（如启用）
             if (expMode) {
-                XpManager.takePlayerExp(player, 1);
+                XpManager.takePlayerExp(player, expCost);
             }
         }
 
