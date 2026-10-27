@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -34,10 +35,11 @@ import org.bukkit.util.Vector;
 
 /** Captures the actual fired bow once; impact never consults the shooter's current equipment. */
 public final class ArrowRainListener implements Listener, AutoCloseable {
-    private static final long RAIN_LIFETIME_TICKS = 30L;
     public static final NamespacedKey ENCHANT = new NamespacedKey("meowsenchants", "arrow_rain");
     public static final NamespacedKey GENERATED = new NamespacedKey("meowsenchants", "arrow_rain_generated");
     private final Plugin plugin;
+    /** Current tunables, read once per shot; null while arrow_rain.yml has no landing_arrow_rain_v1 mechanic. */
+    private final Supplier<ArrowRainSettings> settings;
     private final AtomicBoolean enabled = new AtomicBoolean(true);
     private final Map<UUID, Shot> sources = new ConcurrentHashMap<>();
     private final Set<Shot> shots = ConcurrentHashMap.newKeySet();
@@ -45,7 +47,10 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     private final Map<UUID, Trail> trails = new ConcurrentHashMap<>();
     private volatile RainObserver rainObserver;
 
-    ArrowRainListener(Plugin plugin) { this.plugin = plugin; }
+    public ArrowRainListener(Plugin plugin, Supplier<ArrowRainSettings> settings) {
+        this.plugin = plugin;
+        this.settings = settings;
+    }
 
     /** Rain arrows fire no shoot event; another mechanic (tracking) can take them over here. */
     public interface RainObserver {
@@ -65,7 +70,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onShoot(EntityShootBowEvent event) {
-        if (event.isCancelled() || !enabled.get() || !(event.getEntity() instanceof Player player)
+        if (event.isCancelled() || !enabled.get() || settings.get() == null || !(event.getEntity() instanceof Player player)
                 || !(event.getProjectile() instanceof AbstractArrow source) || isRain(source)) return;
         ItemStack bow = event.getBow();
         int level = enchantLevel(bow);
@@ -75,13 +80,15 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     }
 
     void trackSource(AbstractArrow source, Player player, ItemStack bow, int level, ItemStack ammunition) {
-        Shot shot = new Shot(source.getUniqueId(), player, level, bow, bow.clone(),
+        ArrowRainSettings current = settings.get();
+        if (current == null) return;
+        Shot shot = new Shot(source.getUniqueId(), player, level, new RainPattern(current), bow, bow.clone(),
                 ammunition == null ? null : ammunition.clone(), AmmunitionBudget.isFreeShot(source, bow, ammunition));
         Shot previous = sources.putIfAbsent(shot.sourceId, shot);
         if (previous != null) return;
         shots.add(shot);
         ScheduledTask expiry = source.getScheduler().runDelayed(plugin, task -> finish(shot),
-                () -> { if (shot.state.flying()) finish(shot); }, 1200L);
+                () -> { if (shot.state.flying()) finish(shot); }, current.sourceMaxTicks());
         shot.add(expiry);
         if (expiry == null) finish(shot);
     }
@@ -97,8 +104,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         // until this event also exempts arrows rejected by ProjectileLaunchEvent protection.
         // Vanilla already paid for the original arrow before the shoot event. Reserve only the
         // extra rain arrows now, and never inspect a remote shooter's inventory on impact.
-        shot.rainCount = AmmunitionBudget.reserve(shot.player, shot.ammunition, shot.freeAmmunition, RainPattern.count(shot.level));
-        chargeDurability(shot.firedBow, shot.player, shot.level);
+        shot.rainCount = AmmunitionBudget.reserve(shot.player, shot.ammunition, shot.freeAmmunition, shot.pattern.count(shot.level));
+        chargeDurability(shot.firedBow, shot.player, shot.pattern.extraDurability(shot.level));
         if (shot.rainCount == 0) finish(shot);
     }
 
@@ -106,15 +113,15 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         if (bow == null || bow.getType() != Material.BOW) return 0;
         for (Map.Entry<Enchantment, Integer> entry : bow.getEnchantments().entrySet()) {
             if (ENCHANT.equals(entry.getKey().getKey())) {
-                return entry.getValue() > 0 ? RainPattern.level(entry.getValue()) : 0;
+                return Math.max(0, entry.getValue());
             }
         }
         return 0;
     }
 
-    static void chargeDurability(ItemStack bow, Player player, int level) {
-        if (player.getGameMode() != GameMode.CREATIVE && player.getGameMode() != GameMode.SPECTATOR) {
-            bow.damage(RainPattern.extraDurability(level), player);
+    static void chargeDurability(ItemStack bow, Player player, int extraDurability) {
+        if (extraDurability > 0 && player.getGameMode() != GameMode.CREATIVE && player.getGameMode() != GameMode.SPECTATOR) {
+            bow.damage(extraDurability, player);
         }
     }
 
@@ -144,14 +151,15 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
 
     private void startRain(Shot shot, Location centre, ArrowState state) {
         if (!active(shot) || !shot.rainStarted.compareAndSet(false, true)) return;
-        for (RainPattern.Drop drop : RainPattern.drops(shot.level, shot.rainCount, ThreadLocalRandom.current())) {
-            Location spawn = centre.clone().add(drop.x(), RainPattern.HEIGHT, drop.z());
+        RainPattern pattern = shot.pattern;
+        for (RainPattern.Drop drop : pattern.drops(shot.level, shot.rainCount, ThreadLocalRandom.current())) {
+            Location spawn = centre.clone().add(drop.x(), pattern.height(), drop.z());
             if (spawn.getY() >= spawn.getWorld().getMaxHeight()
                     || spawn.getY() < spawn.getWorld().getMinHeight()) continue;
             shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, spawn, task -> spawnRain(shot, spawn, state), drop.tick()));
         }
         // Keep the final drop alive for its full cleanup window, including level III at tick 60.
-        long completionTick = RainPattern.lastSpawnTick(shot.level) + RAIN_LIFETIME_TICKS;
+        long completionTick = pattern.lastSpawnTick(shot.level) + (long) pattern.settings().lifetimeTicks();
         shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, centre, task -> finish(shot), completionTick));
     }
 
@@ -173,7 +181,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
             rain.setPersistent(false);
             // Do not pre-age arrows: they must remain visible on the ground until spawn+30 ticks.
             rain.setLifetimeTicks(0);
-            rain.setVelocity(new Vector(0, -RainPattern.SPEED, 0));
+            rain.setVelocity(new Vector(0, -shot.pattern.speed(), 0));
             // Projectile pitch uses atan2(dy, horizontalSpeed), so downward is -90 degrees.
             // setVelocity does not update rotation. Set both current/old rotation before insertion
             // so the first spawn packet already shows a vertical arrow, without interpolating from 0.
@@ -182,10 +190,10 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         if (!arrow.isValid()) return; // A protection plugin may cancel ProjectileLaunchEvent.
         rainArrows.put(arrow.getUniqueId(), arrow);
         shot.arrows.add(arrow);
-        startTrail(arrow);
+        startTrail(arrow, shot);
         // This uses the entity scheduler so cleanup follows arrows across region boundaries.
         arrow.getScheduler().runDelayed(plugin, task -> removeOwned(arrow),
-                () -> rainArrows.remove(arrow.getUniqueId()), RAIN_LIFETIME_TICKS);
+                () -> rainArrows.remove(arrow.getUniqueId()), shot.pattern.settings().lifetimeTicks());
         RainObserver observer = rainObserver;
         if (observer != null) observer.rainSpawned(arrow, shot.player, shot.weapon, shot.shotLocation, () -> stopTrail(arrow.getUniqueId()));
         if (!active(shot)) removeOwned(arrow); // Covers a quit/disable racing the spawn callback.
@@ -193,14 +201,15 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
 
     private boolean active(Shot shot) { return enabled.get() && shot.state.active(); }
 
-    private void startTrail(Arrow arrow) {
+    private void startTrail(Arrow arrow, Shot shot) {
         UUID id = arrow.getUniqueId();
+        ArrowRainSettings tunables = shot.pattern.settings();
         Trail trail = new Trail();
         trails.put(id, trail);
         try {
             trail.task = arrow.getScheduler().runAtFixedRate(plugin, scheduled -> {
                 if (!enabled.get() || !trail.active.get() || !arrow.isValid() || arrow.isInBlock()
-                        || trail.ticks++ >= RAIN_LIFETIME_TICKS) {
+                        || trail.ticks++ >= tunables.lifetimeTicks()) {
                     trails.remove(id, trail);
                     trail.active.set(false);
                     scheduled.cancel();
@@ -209,7 +218,9 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
                 // Independent server packets keep the trail visible for partial draws and
                 // clients that skip an off-screen arrow's local physics/CRIT-particle tick.
                 // The real critical flag and damage are never changed to create this effect.
-                arrow.getWorld().spawnParticle(Particle.CRIT, arrow.getLocation(), 2, 0.02, 0.02, 0.02, 0.0);
+                double offset = tunables.trailOffset();
+                arrow.getWorld().spawnParticle(shot.trailParticle, arrow.getLocation(), tunables.trailCount(),
+                        offset, offset, offset, tunables.trailSpeed());
             }, () -> stopTrail(id), 1L, 1L);
             if (trail.task == null || !enabled.get() || !trail.active.get()) {
                 trails.remove(id, trail);
@@ -293,6 +304,9 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         final UUID playerId;
         final Player player;
         final int level;
+        /** Settings captured at the shot; a reload never changes a rain already on its way. */
+        final RainPattern pattern;
+        final Particle trailParticle;
         final ItemStack firedBow;
         final ItemStack weapon;
         final ItemStack ammunition;
@@ -306,11 +320,13 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         final Set<ScheduledTask> tasks = ConcurrentHashMap.newKeySet();
         final Set<AbstractArrow> arrows = ConcurrentHashMap.newKeySet();
 
-        Shot(UUID sourceId, Player player, int level, ItemStack firedBow, ItemStack weapon, ItemStack ammunition, boolean freeAmmunition) {
+        Shot(UUID sourceId, Player player, int level, RainPattern pattern, ItemStack firedBow, ItemStack weapon, ItemStack ammunition, boolean freeAmmunition) {
             this.sourceId = sourceId;
             this.player = player;
             this.playerId = player.getUniqueId();
             this.level = level;
+            this.pattern = pattern;
+            this.trailParticle = trailParticle(pattern.settings().trailParticle());
             this.firedBow = firedBow;
             this.weapon = weapon;
             this.ammunition = ammunition;
@@ -325,6 +341,15 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         }
 
         void cancelTasks() { tasks.forEach(ScheduledTask::cancel); tasks.clear(); }
+    }
+
+    /** A data-free particle by Bukkit name; anything else falls back to CRIT. */
+    static Particle trailParticle(String name) {
+        try {
+            Particle particle = Particle.valueOf(name.toUpperCase(java.util.Locale.ROOT));
+            if (particle.getDataType() == Void.class) return particle;
+        } catch (IllegalArgumentException ignored) { /* Unknown name. */ }
+        return Particle.CRIT;
     }
 
     private record ArrowState(double damage, boolean critical, int fireTicks) {

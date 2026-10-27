@@ -2,11 +2,11 @@ package com.windsor.meowsEnchants.listeners;
 
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.config.EnchantConfig;
+import com.windsor.meowsEnchants.config.GlobalSettings;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
 import io.papermc.paper.registry.keys.tags.EnchantmentTagKeys;
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.Registry;
@@ -34,8 +34,6 @@ public class VillagerTradeListener implements Listener {
 
     private static final String CUSTOM_NAMESPACE = "meowsenchants";
     private static final String VANILLA_NAMESPACE = "minecraft";
-    private static final Component POLLUTED_TRADE_MESSAGE =
-            LegacyComponentSerializer.legacyAmpersand().deserialize("&f[&b附魔&f] &c该村民交易已被污染！");
 
     private final Random random = new Random();
 
@@ -118,7 +116,8 @@ public class VillagerTradeListener implements Listener {
             } else {
                 villager.remove();
             }
-            event.getPlayer().sendMessage(POLLUTED_TRADE_MESSAGE);
+            event.getPlayer().sendMessage(LegacyComponentSerializer.legacyAmpersand()
+                    .deserialize(MeowsEnchants.getGlobalSettings().tradePollutedMessage()));
             return;
         }
     }
@@ -173,18 +172,13 @@ public class VillagerTradeListener implements Listener {
         meta.addStoredEnchant(enchantment, level, true);
         enchantedBook.setItemMeta(meta);
 
-        int baseMin = 2 + level * 3;
-        int baseMax = 6 + level * 13;
-        int price = baseMin + random.nextInt(baseMax - baseMin + 1);
-        if (treasure) {
-            price *= 2;
-        }
-        price = Math.clamp(price, 1, 64);
+        GlobalSettings global = MeowsEnchants.getGlobalSettings();
+        int price = global.tradePrice(level, treasure, random::nextInt);
 
         MerchantRecipe recipe = new MerchantRecipe(
                 enchantedBook,
                 originalRecipe.getUses(),
-                originalRecipe.getMaxUses() > 0 ? originalRecipe.getMaxUses() : 12,
+                originalRecipe.getMaxUses() > 0 ? originalRecipe.getMaxUses() : global.tradeDefaultMaxUses(),
                 originalRecipe.hasExperienceReward(),
                 originalRecipe.getVillagerExperience(),
                 originalRecipe.getPriceMultiplier(),

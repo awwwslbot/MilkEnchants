@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.utils.SchedulerCompat;
@@ -11,15 +12,16 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.player.PlayerToggleSprintEvent;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlayerStateListener implements Listener {
 
     private final MeowsEnchants plugin;
-    private final Map<UUID, SchedulerCompat.Task> sneakHoldTasks = new HashMap<>();
-    private final Map<UUID, SchedulerCompat.Task> sprintHoldTasks = new HashMap<>();
+    // 各玩家的事件在自己的区域线程上到达，所以用并发表
+    private final Map<UUID, SchedulerCompat.Task> sneakHoldTasks = new ConcurrentHashMap<>();
+    private final Map<UUID, SchedulerCompat.Task> sprintHoldTasks = new ConcurrentHashMap<>();
 
     public PlayerStateListener(MeowsEnchants plugin) {
         this.plugin = plugin;
@@ -31,10 +33,10 @@ public class PlayerStateListener implements Listener {
         Player player = event.getPlayer();
         if (event.isSneaking()) {
             // SNEAK 单次触发（仍然保留）
-            EnchantTriggerHelper.checkAndTrigger(player, "SNEAK",
+            EnchantTriggerHelper.checkAndTrigger(player, Trigger.SNEAK.name(),
                     EnchantTriggerHelper.getSlotsForTrigger(player),
                     event, null);
-            startHoldTask(player, "SNEAK_HOLD", sneakHoldTasks, true);
+            startHoldTask(player, Trigger.SNEAK_HOLD.name(), sneakHoldTasks, true);
         } else {
             cancelHoldTask(player, sneakHoldTasks);
         }
@@ -45,10 +47,10 @@ public class PlayerStateListener implements Listener {
     public void onSprint(PlayerToggleSprintEvent event) {
         Player player = event.getPlayer();
         if (event.isSprinting()) {
-            EnchantTriggerHelper.checkAndTrigger(player, "SPRINT",
+            EnchantTriggerHelper.checkAndTrigger(player, Trigger.SPRINT.name(),
                     EnchantTriggerHelper.getSlotsForTrigger(player),
                     event, null);
-            startHoldTask(player, "SPRINT_HOLD", sprintHoldTasks, false);
+            startHoldTask(player, Trigger.SPRINT_HOLD.name(), sprintHoldTasks, false);
         } else {
             cancelHoldTask(player, sprintHoldTasks);
         }
@@ -61,7 +63,7 @@ public class PlayerStateListener implements Listener {
 
         // 获取该附魔的冷却（用于周期）
         long cooldownTicks = getMaxCooldownTicksForPlayer(player, triggerName);
-        long period = Math.max(20, cooldownTicks);
+        long period = Math.max(MeowsEnchants.getGlobalSettings().holdMinPeriodTicks(), cooldownTicks);
         long initialDelay = period; // 首次延迟等于周期
 
         SchedulerCompat.Task task = SchedulerCompat.runAtFixedRate(player, plugin,
@@ -103,6 +105,16 @@ public class PlayerStateListener implements Listener {
             }
         }
         return max;
+    }
+
+    /** reload 后按新的冷却重排正在进行的持续潜行/疾跑任务；在玩家自己的区域线程上调用。 */
+    public void restartHoldTasks(Player player) {
+        if (sneakHoldTasks.containsKey(player.getUniqueId()) && player.isSneaking()) {
+            startHoldTask(player, Trigger.SNEAK_HOLD.name(), sneakHoldTasks, true);
+        }
+        if (sprintHoldTasks.containsKey(player.getUniqueId()) && player.isSprinting()) {
+            startHoldTask(player, Trigger.SPRINT_HOLD.name(), sprintHoldTasks, false);
+        }
     }
 
     public void cancelAllTasks() {

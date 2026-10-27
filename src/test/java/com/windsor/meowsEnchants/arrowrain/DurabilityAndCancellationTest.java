@@ -13,12 +13,12 @@ import org.junit.jupiter.api.Test;
 
 class DurabilityAndCancellationTest {
     @Test void chargesOnlyExtraNativeDurabilityOnExactFiredBow() {
-        for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
+        for (int level = 1; level <= BundledRain.MAX_LEVEL; level++) {
             Player player = mock(Player.class);
             when(player.getGameMode()).thenReturn(GameMode.SURVIVAL);
             ItemStack actualFiredBow = mock(ItemStack.class);
-            ArrowRainListener.chargeDurability(actualFiredBow, player, level);
-            verify(actualFiredBow).damage(RainPattern.extraDurability(level), player);
+            ArrowRainListener.chargeDurability(actualFiredBow, player, BundledRain.RAIN.extraDurability(level));
+            verify(actualFiredBow).damage(BundledRain.RAIN.extraDurability(level), player);
             verifyNoMoreInteractions(actualFiredBow);
             verify(player, never()).getInventory();
         }
@@ -29,13 +29,13 @@ class DurabilityAndCancellationTest {
             Player player = mock(Player.class);
             when(player.getGameMode()).thenReturn(mode);
             ItemStack bow = mock(ItemStack.class);
-            ArrowRainListener.chargeDurability(bow, player, 3);
+            ArrowRainListener.chargeDurability(bow, player, BundledRain.RAIN.extraDurability(3));
             verifyNoInteractions(bow);
         }
     }
 
     @Test void cancelledShootNeverReadsBowOrCapturesProjectile() {
-        var listener = new ArrowRainListener(mock(Plugin.class));
+        var listener = BundledRain.listener(mock(Plugin.class));
         var event = mock(EntityShootBowEvent.class);
         when(event.isCancelled()).thenReturn(true);
         listener.onShoot(event);
@@ -45,7 +45,7 @@ class DurabilityAndCancellationTest {
     }
 
     @Test void cancelledImpactNeverStartsRain() {
-        var listener = new ArrowRainListener(mock(Plugin.class));
+        var listener = BundledRain.listener(mock(Plugin.class));
         var event = mock(ProjectileHitEvent.class);
         when(event.isCancelled()).thenReturn(true);
         listener.onHit(event);

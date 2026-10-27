@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.kyori.adventure.sound.Sound;
@@ -16,6 +17,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
+import org.bukkit.World;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
@@ -50,11 +52,11 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
     private static final long PENDING_NANOS = TimeUnit.SECONDS.toNanos(5);
 
     private final Plugin plugin;
-    private final TrackingSettings settings;
     private final CombatTracker combat;
-    private final TargetRules rules;
-    private final Particle particle;
-    private final Sound chime;
+    private final TargetRules.Protection protection;
+    private final Predicate<World> pvpRule;
+    /** Current tunables and the rules built from them; null while tracking.yml has no tracking_v1 mechanic. */
+    private volatile Runtime runtime;
     private final AtomicBoolean enabled = new AtomicBoolean(true);
     private final AtomicBoolean failureLogged = new AtomicBoolean();
     /** Shot but not yet launched: ProjectileLaunchEvent may still be cancelled by protection plugins. */
@@ -69,22 +71,49 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
     private final Map<UUID, ShotRecord> shots = new ConcurrentHashMap<>();
     private final Map<UUID, Shooter> shooters = new ConcurrentHashMap<>();
 
-    /** particle and chime are resolved from settings by {@link TrackingConfig}; a null chime is silent. */
+    /**
+     * One settings snapshot: a tracker keeps the snapshot it started with, so a reload never changes a
+     * projectile already in flight. particle and chime are resolved from the settings; a null chime is silent.
+     */
+    record Runtime(TrackingSettings settings, TargetRules rules, Particle particle, Sound chime) {}
+
+    /** Fixed settings, as built by tests. */
     TrackingListener(Plugin plugin, TrackingSettings settings, CombatTracker combat, TargetRules rules,
                      Particle particle, Sound chime) {
         this.plugin = plugin;
-        this.settings = settings;
         this.combat = combat;
-        this.rules = rules;
-        this.particle = particle;
-        this.chime = chime;
+        this.protection = TargetRules.Protection.NONE;
+        this.pvpRule = TargetRules.VANILLA_PVP;
+        this.runtime = new Runtime(settings, rules, particle, chime);
+    }
+
+    /** Starts disabled; {@link #apply} switches it on. */
+    TrackingListener(Plugin plugin, CombatTracker combat, TargetRules.Protection protection, Predicate<World> pvpRule) {
+        this.plugin = plugin;
+        this.combat = combat;
+        this.protection = protection;
+        this.pvpRule = pvpRule;
+    }
+
+    /**
+     * Switches to new tunables atomically, or disables tracking when settings is null. Projectiles already
+     * tracking keep their own snapshot; when disabled they stop on their next tick.
+     */
+    public void apply(TrackingSettings settings) {
+        if (settings == null) {
+            runtime = null;
+            return;
+        }
+        combat.setWindowNanos(settings.pvpCombatNanos());
+        runtime = new Runtime(settings, new TargetRules(settings, combat, protection, pvpRule),
+                TrackingConfig.particle(settings.particle(), plugin.getLogger()),
+                TrackingConfig.chime(settings, plugin.getLogger()));
     }
 
     public CombatTracker combat() { return combat; }
-    TrackingSettings settings() { return settings; }
-    TargetRules rules() { return rules; }
+    Runtime runtime() { return runtime; }
     Logger logger() { return plugin.getLogger(); }
-    boolean active() { return enabled.get(); }
+    boolean active() { return enabled.get() && runtime != null; }
 
     public static boolean isMarked(Entity entity) {
         return entity != null && entity.getPersistentDataContainer().has(MARK, PersistentDataType.BYTE);
@@ -105,7 +134,8 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onShoot(EntityShootBowEvent event) {
-        if (!enabled.get() || !(event.getEntity() instanceof Player player)) return;
+        Runtime current = runtime;
+        if (!enabled.get() || current == null || !(event.getEntity() instanceof Player player)) return;
         Entity entity = event.getProjectile();
         Tracker.Kind kind = entity instanceof Firework ? Tracker.Kind.FIREWORK
                 : entity instanceof AbstractArrow && !(entity instanceof Trident) ? Tracker.Kind.ARROW : null;
@@ -119,7 +149,7 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
         entity.getPersistentDataContainer().set(MARK, PersistentDataType.BYTE, (byte) Math.min(level, Byte.MAX_VALUE));
         long now = System.nanoTime();
         pending.values().removeIf(stale -> now - stale.createdNanos > PENDING_NANOS);
-        pending.put(entity.getUniqueId(), new Tracker(this, (Projectile) entity, kind, level, shooter, shotLocation, null));
+        pending.put(entity.getUniqueId(), new Tracker(this, current, (Projectile) entity, kind, level, shooter, shotLocation, null));
     }
 
     /** Each multishot projectile has its own shoot and launch event. */
@@ -132,19 +162,20 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
     /** Rain arrows fire no shoot event; the arrow rain listener hands them over after spawning. */
     @Override
     public void rainSpawned(Arrow arrow, Player player, ItemStack weapon, Location shotLocation, Runnable stopTrail) {
-        if (!enabled.get()) return;
+        Runtime current = runtime;
+        if (!enabled.get() || current == null) return;
         int level = enchantLevel(weapon);
         if (level == 0) return;
         arrow.getPersistentDataContainer().set(MARK, PersistentDataType.BYTE, (byte) Math.min(level, Byte.MAX_VALUE));
         Shooter shooter = shooters.get(player.getUniqueId());
         if (shooter == null || shooter.player != player || !shooter.online) return;
-        start(new Tracker(this, arrow, Tracker.Kind.RAIN, level, shooter, shotLocation, stopTrail));
+        start(new Tracker(this, current, arrow, Tracker.Kind.RAIN, level, shooter, shotLocation, stopTrail));
     }
 
     private void start(Tracker tracker) {
         if (!enabled.get()) return;
         trackers.put(tracker.id, tracker);
-        shots.put(tracker.id, new ShotRecord(tracker.shooter, tracker.view));
+        shots.put(tracker.id, new ShotRecord(tracker.shooter, tracker.view, tracker.runtime.rules()));
         try {
             ScheduledTask task = tracker.projectile.getScheduler().runAtFixedRate(plugin, tracker::tick,
                     () -> forgetProjectile(tracker.id), 1L, 1L);
@@ -203,7 +234,7 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
         // trackable for that shot any more, so the blast hurts nobody.
         ShotRecord shot = shots.get(firework.getUniqueId());
         if (shot == null || !shot.shooter().online || !(victim instanceof LivingEntity living)
-                || !rules.trackable(living, shot.view())) {
+                || !shot.rules().trackable(living, shot.view())) {
             event.setCancelled(true);
         }
     }
@@ -218,7 +249,8 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
     }
 
     /** One chime per shooter per region tick, played on the shooter's own scheduler. */
-    void chime(Shooter shooter, long gameTick) {
+    void chime(Runtime snapshot, Shooter shooter, long gameTick) {
+        Sound chime = snapshot.chime();
         if (chime == null || !shooter.online || !shooter.claimChime(gameTick)) return;
         try {
             shooter.player.getScheduler().run(plugin, task -> {
@@ -228,7 +260,9 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
         } catch (IllegalPluginAccessException ignored) { /* Disabled concurrently. */ }
     }
 
-    void emit(Location at) {
+    void emit(Runtime snapshot, Location at) {
+        Particle particle = snapshot.particle();
+        TrackingSettings settings = snapshot.settings();
         if (particle == null) return;
         int min = settings.particleCountMin(), max = settings.particleCountMax();
         int count = max > min ? ThreadLocalRandom.current().nextInt(min, max + 1) : min;
@@ -241,8 +275,8 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
 
     boolean hasShotRecord(UUID projectile) { return shots.containsKey(projectile); }
 
-    /** A projectile's shooter session and the view taken when it was fired. */
-    private record ShotRecord(Shooter shooter, Shooter.View view) {}
+    /** A projectile's shooter session, the view taken when it was fired and the rules then in force. */
+    private record ShotRecord(Shooter shooter, Shooter.View view, TargetRules rules) {}
 
     /** Logs the first failure of a tracking task; later ones only stop their own projectile. */
     void failed(Throwable error) {

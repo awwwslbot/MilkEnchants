@@ -131,7 +131,7 @@ class RainTrailLifecycleTest {
         final ScheduledTask trailTask = mock(ScheduledTask.class);
         final World world = mock(World.class);
         final RegionScheduler regions = mock(RegionScheduler.class);
-        final ArrowRainListener listener = new ArrowRainListener(plugin);
+        final ArrowRainListener listener = BundledRain.listener(plugin);
         final AtomicReference<Consumer<ScheduledTask>> drop = new AtomicReference<>();
         final AtomicReference<Consumer<ScheduledTask>> trail = new AtomicReference<>();
         final AtomicLong cleanupDelay = new AtomicLong(-1);

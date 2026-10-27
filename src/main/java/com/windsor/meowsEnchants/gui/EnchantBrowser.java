@@ -283,7 +283,7 @@ public final class EnchantBrowser implements Listener {
         ItemStack book = new ItemStack(material);
         ItemMeta meta = book.getItemMeta();
         meta.customName(TextUtil.parseFlat(config.getDisplayName()));
-        List<String> description = config.getDescription();
+        List<String> description = config.getDisplayDescription();
         if (!description.isEmpty()) {
             List<Component> lore = new ArrayList<>(description.size());
             for (String line : description) {

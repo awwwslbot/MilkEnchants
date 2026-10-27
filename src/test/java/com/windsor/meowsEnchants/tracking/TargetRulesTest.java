@@ -20,6 +20,7 @@ import org.bukkit.entity.CopperGolem;
 import org.bukkit.entity.Cow;
 import org.bukkit.entity.Enderman;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Ghast;
 import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.LivingEntity;
@@ -74,6 +75,21 @@ class TargetRulesTest {
             when(angry.getTarget()).thenReturn(victim);
             assertEquals(HOSTILE, rules.priority(angry, shooter), type.getSimpleName() + " attacking a player");
         }
+    }
+
+    @Test void neverTrackedAndNeutralListsComeFromTheConfig() {
+        TrackingSettings settings = TrackingSettings.fromYaml(java.util.Map.of(
+                "never_tracked", List.of("iron_golem"), "neutral_until_attacking", List.of("minecraft:piglin")));
+        TargetRules configured = new TargetRules(settings, fighting::contains, protection, w -> true);
+        assertEquals(FRIENDLY, configured.priority(mob(Villager.class), shooter), "villagers removed from never_tracked");
+        assertNull(configured.priority(mob(IronGolem.class), shooter));
+        assertEquals(HOSTILE, configured.priority(mob(Enderman.class), shooter), "calm endermen no longer neutral");
+        assertNull(configured.priority(mob(Piglin.class), shooter), "calm piglins still neutral");
+        TrackingSettings zombies = TrackingSettings.fromYaml(java.util.Map.of("neutral_until_attacking", List.of("ZOMBIE")));
+        TargetRules exact = new TargetRules(zombies, fighting::contains, protection, w -> true);
+        assertNull(exact.priority(mob(Zombie.class), shooter), "calm zombies are now neutral");
+        assertEquals(HOSTILE, exact.priority(mob(org.bukkit.entity.Husk.class), shooter), "a listed type is matched exactly, not its subtypes");
+        assertEquals(HOSTILE, exact.priority(mob(PigZombie.class), shooter), "zombified piglins left the list");
     }
 
     @Test void animalsIncludingNeutralOnesAreFriendly() {
@@ -188,6 +204,10 @@ class TargetRulesTest {
     static <T extends LivingEntity> T living(Class<T> type) {
         T entity = mock(type);
         when(entity.getUniqueId()).thenReturn(UUID.randomUUID());
+        // Like the server: the entity type whose class is exactly this interface.
+        for (EntityType entityType : EntityType.values()) {
+            if (entityType.getEntityClass() == type) when(entity.getType()).thenReturn(entityType);
+        }
         return entity;
     }
 }

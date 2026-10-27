@@ -10,18 +10,21 @@ import net.kyori.adventure.key.Key;
 import org.bukkit.*;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ItemType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import com.windsor.meowsEnchants.schema.EnchantSchema;
 import org.slf4j.Logger;
 
 public class EnchantConfig {
     private final String id;
     private final String displayName;
     private final List<String> description;
+    private final List<String> displayDescription;
     private final int maxLevel;
     private final int anvilCost;
     private final String applicableItem;
@@ -29,6 +32,8 @@ public class EnchantConfig {
     private final String target;
     private final long cooldown;
     private final List<Map<String, Object>> actions;
+    private final List<String> actionKeys;
+    private final Map<String, Object> rawData;
     private final List<String> conflictIds;
     private final Map<String, Object> soundData;
     private final Map<String, Object> particleData;
@@ -109,6 +114,27 @@ public class EnchantConfig {
         public int getMaxCost() { return maxCost; }
     }
 
+    /** {@code registry:} 段：注册进原版的属性，只在 bootstrap 生效。 */
+    public record RegistrySettings(int weight, int minCost, int minCostPerLevel, int maxCost, int maxCostPerLevel,
+                                   String activeSlots) {
+        public static RegistrySettings from(Map<String, Object> data) {
+            Map<String, Object> section = EnchantSchema.REGISTRY.read(data);
+            return new RegistrySettings(
+                    Math.clamp(EnchantSchema.REGISTRY_WEIGHT.read(section), 1, 1024),
+                    Math.max(0, EnchantSchema.REGISTRY_MIN_COST.read(section)),
+                    Math.max(0, EnchantSchema.REGISTRY_MIN_COST_PER_LEVEL.read(section)),
+                    Math.max(0, EnchantSchema.REGISTRY_MAX_COST.read(section)),
+                    Math.max(0, EnchantSchema.REGISTRY_MAX_COST_PER_LEVEL.read(section)),
+                    EnchantSchema.REGISTRY_ACTIVE_SLOTS.read(section).toUpperCase(Locale.ROOT));
+        }
+
+        /** 不认识的槽位组按 ANY。 */
+        public EquipmentSlotGroup slotGroup() {
+            EquipmentSlotGroup group = EquipmentSlotGroup.getByName(activeSlots.toLowerCase(Locale.ROOT));
+            return group != null ? group : EquipmentSlotGroup.ANY;
+        }
+    }
+
     public static class VillagerTradeConfig {
         private final boolean enabled;
         private final double chance;
@@ -141,6 +167,54 @@ public class EnchantConfig {
                          @Nullable Map<String, Object> particleData,
                          @Nullable EnchantingTableConfig enchantingTableConfig,
                          @Nullable VillagerTradeConfig villagerTradeConfig) {
+        this(id, displayName, description, maxLevel, anvilCost, applicableItem, trigger, target, cooldown,
+                actions, null, conflicts, soundData, particleData, enchantingTableConfig, villagerTradeConfig, null);
+    }
+
+    /**
+     * @param actionKeys 与 actions 一一对应的动作键（yml 里 actions 下的键名），为 null 时按序号
+     * @param rawData    整个 yml 文件解析后的原始内容，供说明占位符和加载期校验使用
+     */
+    public EnchantConfig(@NotNull String id,
+                         @NotNull String displayName,
+                         @Nullable List<String> description,
+                         int maxLevel,
+                         int anvilCost,
+                         @Nullable String applicableItem,
+                         @Nullable String trigger,
+                         @Nullable String target,
+                         long cooldown,
+                         @Nullable List<Map<String, Object>> actions,
+                         @Nullable List<String> actionKeys,
+                         @Nullable List<String> conflicts,
+                         @Nullable Map<String, Object> soundData,
+                         @Nullable Map<String, Object> particleData,
+                         @Nullable EnchantingTableConfig enchantingTableConfig,
+                         @Nullable VillagerTradeConfig villagerTradeConfig,
+                         @Nullable Map<String, Object> rawData) {
+        this(id, displayName, description, maxLevel, anvilCost, applicableItem, trigger, target, cooldown, actions,
+                actionKeys, conflicts, soundData, particleData, enchantingTableConfig, villagerTradeConfig, rawData, rawData);
+    }
+
+    /** renderData：渲染说明占位符用的内容（reload 保持注册值时和 rawData 不同）。 */
+    private EnchantConfig(@NotNull String id,
+                          @NotNull String displayName,
+                          @Nullable List<String> description,
+                          int maxLevel,
+                          int anvilCost,
+                          @Nullable String applicableItem,
+                          @Nullable String trigger,
+                          @Nullable String target,
+                          long cooldown,
+                          @Nullable List<Map<String, Object>> actions,
+                          @Nullable List<String> actionKeys,
+                          @Nullable List<String> conflicts,
+                          @Nullable Map<String, Object> soundData,
+                          @Nullable Map<String, Object> particleData,
+                          @Nullable EnchantingTableConfig enchantingTableConfig,
+                          @Nullable VillagerTradeConfig villagerTradeConfig,
+                          @Nullable Map<String, Object> rawData,
+                          @Nullable Map<String, Object> renderData) {
         this.id = id;
         this.displayName = displayName;
         this.description = description != null ? List.copyOf(description) : Collections.emptyList();
@@ -151,6 +225,21 @@ public class EnchantConfig {
         this.target = target != null ? target.toUpperCase(Locale.ROOT) : null;
         this.cooldown = Math.max(0, cooldown);
         this.actions = actions != null ? List.copyOf(actions) : Collections.emptyList();
+        if (actionKeys != null && actionKeys.size() == this.actions.size()) {
+            this.actionKeys = List.copyOf(actionKeys);
+        } else {
+            List<String> keys = new ArrayList<>(this.actions.size());
+            for (int i = 0; i < this.actions.size(); i++) keys.add(String.valueOf(i));
+            this.actionKeys = List.copyOf(keys);
+        }
+        this.rawData = rawData != null ? Collections.unmodifiableMap(rawData) : Collections.emptyMap();
+        if (renderData == null) {
+            this.displayDescription = this.description;
+        } else {
+            List<String> rendered = new ArrayList<>(this.description.size());
+            for (String line : this.description) rendered.add(Placeholders.render(renderData, line).text());
+            this.displayDescription = List.copyOf(rendered);
+        }
         this.conflictIds = conflicts != null ? List.copyOf(conflicts) : Collections.emptyList();
         this.soundData = soundData;
         this.particleData = particleData;
@@ -162,10 +251,28 @@ public class EnchantConfig {
                 : new VillagerTradeConfig(false, 0.0, false);
     }
 
+    /**
+     * reload 时注册相关字段变了：这些字段保持启动时注册的值（注册表已冻结），其余字段用新配置。
+     * GUI 名照常用新的；说明占位符按保持后的 max_level / anvil_cost 渲染。
+     */
+    public @NotNull EnchantConfig withRegistered(@NotNull RegisteredEnchant registered) {
+        Map<String, Object> render = new LinkedHashMap<>(rawData);
+        render.put(EnchantSchema.MAX_LEVEL.key(), registered.maxLevel());
+        render.put(EnchantSchema.ANVIL_COST.key(), registered.anvilCost());
+        EnchantConfig copy = new EnchantConfig(id, displayName, description, registered.maxLevel(),
+                registered.anvilCost(), registered.applicableItem(), trigger, target, cooldown, actions, actionKeys,
+                registered.conflicts(), soundData, particleData, enchantingTableConfig, villagerTradeConfig, rawData,
+                render);
+        copy.setLogger(logger);
+        return copy;
+    }
+
     // ---- Getters ----
     public @NotNull String getId() { return id; }
     public @NotNull String getDisplayName() { return displayName; }
     public @NotNull List<String> getDescription() { return description; }
+    /** 替换了说明占位符的 description，/enchants 界面显示用。 */
+    public @NotNull List<String> getDisplayDescription() { return displayDescription; }
     public @Nullable String getApplicableItem() { return applicableItem; }
     public int getMaxLevel() { return maxLevel; }
     public int getAnvilCost() { return anvilCost; }
@@ -177,6 +284,12 @@ public class EnchantConfig {
     public long getCooldown() { return cooldown; }
     public long getCooldownTicks() { return Math.max(1, (cooldown + 49) / 50); }
     public @NotNull List<Map<String, Object>> getActions() { return actions; }
+    /** 与 {@link #getActions()} 一一对应的动作键。 */
+    public @NotNull List<String> getActionKeys() { return actionKeys; }
+    /** yml 文件解析后的原始内容。 */
+    public @NotNull Map<String, Object> getRawData() { return rawData; }
+    /** {@code registry:} 段（缺省 = milk.12 写死的值）。 */
+    public @NotNull RegistrySettings getRegistrySettings() { return RegistrySettings.from(rawData); }
     public @NotNull List<String> getConflictIds() { return conflictIds; }
     public @Nullable SoundConfig getSoundConfig() { return soundConfig; }
     public @Nullable ParticleConfig getParticleConfig() { return particleConfig; }
@@ -184,16 +297,21 @@ public class EnchantConfig {
     // ---- 延迟解析方法（注册或重新加载配置后调用） ----
     public void resolveSound() {
         if (soundData == null || logger == null) return;
-        String typeStr = (String) soundData.get("type");
+        String typeStr = EnchantSchema.SOUND_TYPE.read(soundData);
         if (typeStr == null) return;
-        Sound sound = Registry.SOUNDS.get(Key.key(typeStr));
+        Sound sound;
+        try {
+            sound = Registry.SOUNDS.get(Key.key(typeStr));
+        } catch (RuntimeException e) {
+            sound = null;
+        }
         if (sound == null) {
             logger.warn("[MeowsEnchants] 未知音效: " + typeStr);
             return;
         }
-        float volume = ((Number) soundData.getOrDefault("volume", 1.0)).floatValue();
-        float pitch = ((Number) soundData.getOrDefault("pitch", 1.0)).floatValue();
-        String locStr = ((String) soundData.getOrDefault("location", "SELF")).toUpperCase();
+        float volume = EnchantSchema.SOUND_VOLUME.read(soundData).floatValue();
+        float pitch = EnchantSchema.SOUND_PITCH.read(soundData).floatValue();
+        String locStr = EnchantSchema.SOUND_LOCATION.read(soundData).toUpperCase();
         ParticleConfig.LocationType location;
         try {
             location = ParticleConfig.LocationType.valueOf(locStr);
@@ -205,11 +323,16 @@ public class EnchantConfig {
 
     public void resolveParticle() {
         if (particleData == null || logger == null) return;
-        String typeStr = (String) particleData.get("type");
+        String typeStr = EnchantSchema.PARTICLE_TYPE.read(particleData);
         if (typeStr == null) return;
 
         // 解析粒子类型
-        Particle particle = Registry.PARTICLE_TYPE.get(Key.key(typeStr.toLowerCase()));
+        Particle particle;
+        try {
+            particle = Registry.PARTICLE_TYPE.get(Key.key(typeStr.toLowerCase()));
+        } catch (RuntimeException e) {
+            particle = null;
+        }
         if (particle == null) {
             try {
                 particle = Particle.valueOf(typeStr.toUpperCase());
@@ -220,10 +343,10 @@ public class EnchantConfig {
             return;
         }
 
-        int count = ((Number) particleData.getOrDefault("count", 10)).intValue();
-        double spread = ((Number) particleData.getOrDefault("spread", 0.5)).doubleValue();
-        double speed = ((Number) particleData.getOrDefault("speed", 0.1)).doubleValue();
-        String locStr = ((String) particleData.getOrDefault("location", "SELF")).toUpperCase();
+        int count = EnchantSchema.PARTICLE_COUNT.read(particleData);
+        double spread = EnchantSchema.PARTICLE_SPREAD.read(particleData);
+        double speed = EnchantSchema.PARTICLE_SPEED.read(particleData);
+        String locStr = EnchantSchema.PARTICLE_LOCATION.read(particleData).toUpperCase();
         ParticleConfig.LocationType location;
         try {
             location = ParticleConfig.LocationType.valueOf(locStr);
@@ -233,7 +356,8 @@ public class EnchantConfig {
 
         // 解析 data
         Object dataObj = null;
-        Map<String, Object> dataMap = (Map<String, Object>) particleData.get("data");
+        Map<String, Object> dataMap = EnchantSchema.PARTICLE_DATA.isPresent(particleData)
+                ? EnchantSchema.PARTICLE_DATA.read(particleData) : null;
         if (dataMap != null) {
             dataObj = parseParticleData(particle, dataMap);
         }
@@ -253,7 +377,7 @@ public class EnchantConfig {
 
         // 1. BlockData 类 - 返回 Material 以供延迟创建
         if (dataType == BlockData.class) {
-            String materialStr = (String) dataMap.get("material");
+            String materialStr = EnchantSchema.PARTICLE_MATERIAL.read(dataMap);
             if (materialStr == null) {
                 logger.warn("[MeowsEnchants] 粒子 " + particle.name() + " 需要 material 参数");
                 return null;
@@ -264,7 +388,7 @@ public class EnchantConfig {
 
         // 2. Color 类
         if (dataType == Color.class) {
-            String colorStr = (String) dataMap.get("color");
+            String colorStr = EnchantSchema.PARTICLE_COLOR.read(dataMap);
             if (colorStr == null) {
                 logger.warn("[MeowsEnchants] 粒子 " + particle.name() + " 需要 color 参数");
                 return null;
@@ -274,8 +398,8 @@ public class EnchantConfig {
 
         // 3. DustOptions 类
         if (dataType == Particle.DustOptions.class) {
-            String colorStr = (String) dataMap.get("color");
-            Number sizeNum = (Number) dataMap.getOrDefault("size", 1.0);
+            String colorStr = EnchantSchema.PARTICLE_COLOR.read(dataMap);
+            Number sizeNum = EnchantSchema.PARTICLE_SIZE.read(dataMap);
             if (colorStr == null) {
                 logger.warn("[MeowsEnchants] DUST 粒子需要 color 参数");
                 return null;
@@ -288,9 +412,9 @@ public class EnchantConfig {
 
         // 4. DustTransition 类
         if (dataType == Particle.DustTransition.class) {
-            String colorStr = (String) dataMap.get("color");
-            String toColorStr = (String) dataMap.get("to_color");
-            Number sizeNum = (Number) dataMap.getOrDefault("size", 1.0);
+            String colorStr = EnchantSchema.PARTICLE_COLOR.read(dataMap);
+            String toColorStr = EnchantSchema.PARTICLE_TO_COLOR.read(dataMap);
+            Number sizeNum = EnchantSchema.PARTICLE_SIZE.read(dataMap);
             if (colorStr == null || toColorStr == null) {
                 logger.warn("[MeowsEnchants] DUST_COLOR_TRANSITION 需要 color 和 to_color 参数");
                 return null;
@@ -304,7 +428,7 @@ public class EnchantConfig {
 
         // 5. ItemStack 类 - 延迟创建：仅存 Material，运行时再转为 ItemStack
         if (dataType == ItemStack.class) {
-            String materialStr = (String) dataMap.get("material");
+            String materialStr = EnchantSchema.PARTICLE_MATERIAL.read(dataMap);
             if (materialStr == null) {
                 logger.warn("[MeowsEnchants] 粒子 " + particle.name() + " 需要 material 参数");
                 return null;
@@ -316,7 +440,7 @@ public class EnchantConfig {
 
         // 6. Integer 类
         if (dataType == Integer.class) {
-            Number intNum = (Number) dataMap.get("value");
+            Number intNum = EnchantSchema.PARTICLE_VALUE.read(dataMap);
             if (intNum == null) {
                 logger.warn("[MeowsEnchants] 粒子 " + particle.name() + " 需要 value 参数");
                 return null;

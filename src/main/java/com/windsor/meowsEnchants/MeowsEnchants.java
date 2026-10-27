@@ -1,11 +1,18 @@
 package com.windsor.meowsEnchants;
 
+import com.windsor.meowsEnchants.actions.ListScaling;
+import com.windsor.meowsEnchants.actions.impl.AttributeModifierHelper;
 import com.windsor.meowsEnchants.actions.impl.TillAction;
-import com.windsor.meowsEnchants.arrowrain.ArrowRainConfig;
 import com.windsor.meowsEnchants.arrowrain.ArrowRainListener;
 import com.windsor.meowsEnchants.commands.EnchantsCommand;
+import com.windsor.meowsEnchants.config.BukkitRegistries;
+import com.windsor.meowsEnchants.config.ConfigReload;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
+import com.windsor.meowsEnchants.config.GlobalSettings;
+import com.windsor.meowsEnchants.config.RegisteredEnchant;
+import com.windsor.meowsEnchants.config.ReloadReport;
+import com.windsor.meowsEnchants.config.RuntimeConfig;
 import com.windsor.meowsEnchants.gui.EnchantBrowser;
 import com.windsor.meowsEnchants.listeners.AutoBowListener;
 import com.windsor.meowsEnchants.listeners.AutoBowManager;
@@ -27,67 +34,81 @@ import com.windsor.meowsEnchants.listeners.ProjectileListener;
 import com.windsor.meowsEnchants.listeners.VillagerTradeListener;
 import com.windsor.meowsEnchants.tracking.TrackingConfig;
 import com.windsor.meowsEnchants.tracking.TrackingListener;
+import com.windsor.meowsEnchants.utils.SchedulerCompat;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class MeowsEnchants extends JavaPlugin {
 
     private static MeowsEnchants instance;
-    private static Map<Key, EnchantConfig> enchantConfigs = new HashMap<>();
-    private static boolean skylliaCompatibilityEnabled;
-    private static boolean enchantingTableUsePlayerLevel;
-    private static double enchantingTablePlayerLevelFactor = 500.0;
-    private static boolean enchantingTableBalanceBooks;
+    /** 运行时配置的唯一入口；reload 时整体替换（见 {@link RuntimeConfig}）。 */
+    private static volatile RuntimeConfig runtime = RuntimeConfig.EMPTY;
 
     private EnchantBrowser enchantBrowser;
     private ArrowRainListener arrowRain;
     private TrackingListener tracking;
+    private PlayerStateListener playerStateListener;
+    /** 启动加载时确定的注册值，reload 拿它判断哪些改动要重启。 */
+    private Map<String, RegisteredEnchant> baseline = Map.of();
 
     public static MeowsEnchants getInstance() {
         return instance;
     }
 
+    public static RuntimeConfig getRuntime() {
+        return runtime;
+    }
+
     public static void setEnchantConfigs(Map<Key, EnchantConfig> configs) {
-        enchantConfigs = configs;
+        runtime = runtime.withEnchants(configs);
     }
 
     public static Map<Key, EnchantConfig> getEnchantConfigs() {
-        return enchantConfigs;
+        return runtime.enchants();
+    }
+
+    public static GlobalSettings getGlobalSettings() {
+        return runtime.global();
     }
 
     public static boolean isSkylliaCompatibilityEnabled() {
-        return skylliaCompatibilityEnabled;
+        return runtime.global().skylliaCompatibility();
     }
 
     public static boolean isEnchantingTableUsePlayerLevel() {
-        return enchantingTableUsePlayerLevel;
+        return runtime.global().tableUsePlayerLevel();
     }
 
     public static double getEnchantingTablePlayerLevelFactor() {
-        return enchantingTablePlayerLevelFactor;
+        return runtime.global().tablePlayerLevelFactor();
     }
 
     public static boolean isEnchantingTableBalanceBooks() {
-        return enchantingTableBalanceBooks;
+        return runtime.global().tableBalanceBooks();
     }
 
     @Override
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
-        reloadRuntimeConfig();
-        reloadEnchantConfigs();
+        ListScaling.setWarner(message -> getSLF4JLogger().warn(message));
+
+        // 两个专用机制的监听器总是注册，是否启用由当前运行时配置决定（reload 可开关）
+        arrowRain = new ArrowRainListener(this, () -> runtime.arrowRain());
+        tracking = TrackingConfig.createListener(this);
+        ReloadReport report = loadConfiguration(true);
+        report.lines(getPluginMeta().getVersion(), true).forEach(line -> getSLF4JLogger().info(line));
 
         getServer().getPluginManager().registerEvents(new CombatListener(), this);
         getServer().getPluginManager().registerEvents(new BlockInteractionListener(), this);
         getServer().getPluginManager().registerEvents(new ProjectileListener(), this);
         getServer().getPluginManager().registerEvents(new FishingListener(), this);
-        PlayerStateListener playerStateListener = new PlayerStateListener(this);
+        playerStateListener = new PlayerStateListener(this);
         getServer().getPluginManager().registerEvents(playerStateListener, this);
         getServer().getPluginManager().registerEvents(new LifecycleListener(this), this);
         getServer().getPluginManager().registerEvents(new ItemListener(this), this);
@@ -99,22 +120,17 @@ public class MeowsEnchants extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockDropItemListener(), this);
         getServer().getPluginManager().registerEvents(new AutoBowListener(), this);
         getServer().getPluginManager().registerEvents(new DrawAccelerateListener(), this);
-        arrowRain = ArrowRainConfig.createListener(this);
-        if (arrowRain != null) {
-            getServer().getPluginManager().registerEvents(arrowRain, this);
-        }
-        tracking = TrackingConfig.createListener(this);
-        if (tracking != null) {
-            getServer().getPluginManager().registerEvents(tracking, this);
-            getServer().getPluginManager().registerEvents(tracking.combat(), this);
-            if (arrowRain != null) arrowRain.setRainObserver(tracking);
-        }
+        getServer().getPluginManager().registerEvents(arrowRain, this);
+        getServer().getPluginManager().registerEvents(tracking, this);
+        getServer().getPluginManager().registerEvents(tracking.combat(), this);
+        arrowRain.setRainObserver(tracking);
 
         enchantBrowser = new EnchantBrowser(this);
         getServer().getPluginManager().registerEvents(enchantBrowser, this);
         enchantBrowser.cleanupStaleViews();
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
-                event.registrar().register("enchants", "打开附魔查询界面", new EnchantsCommand(enchantBrowser)));
+                event.registrar().register("enchants", "打开附魔查询界面；/enchants reload 重载配置",
+                        new EnchantsCommand(enchantBrowser, this)));
 
         Bukkit.getOnlinePlayers().forEach(player -> PassiveTaskManager.startTaskForPlayer(this, player));
     }
@@ -137,40 +153,49 @@ public class MeowsEnchants extends JavaPlugin {
             enchantBrowser.shutdown();
             enchantBrowser = null;
         }
-        // 清空静态配置表，避免热重载/卸载后旧的 EnchantConfig 仍被类加载器外的引用持有
-        enchantConfigs = new HashMap<>();
+        // 清空静态配置，避免热重载/卸载后旧的 EnchantConfig 仍被类加载器外的引用持有
+        runtime = RuntimeConfig.EMPTY;
+        ListScaling.setWarner(null);
         instance = null;
     }
 
     /**
-     * 重新读取磁盘上的附魔配置。
-     * <p>
-     * bootstrap 只在服务端启动时执行一次，PlugmanX 热重载后不会再次执行；若不在
-     * onEnable 重新读取，配置表将为空，所有自定义附魔的触发器都会失效。
+     * {@code /enchants reload}：重读 config.yml 和全部附魔 yml，整体替换运行时配置，
+     * 再在各在线玩家自己的区域线程上重排 PASSIVE / 持续潜行疾跑任务、刷新属性修饰。
      */
-    private void reloadEnchantConfigs() {
-        Map<Key, EnchantConfig> loaded = EnchantConfigLoader.loadAll(
-                EnchantConfigLoader.enchantDir(), getSLF4JLogger());
-        if (loaded.isEmpty()) {
-            getSLF4JLogger().warn("No enchantment configs loaded; custom enchant triggers will not work.");
-            return;
+    public synchronized ReloadReport reloadConfiguration() {
+        ReloadReport report = loadConfiguration(false);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            SchedulerCompat.run(player, this, task -> {
+                if (!player.isOnline()) return;
+                PassiveTaskManager.startTaskForPlayer(this, player);
+                playerStateListener.restartHoldTasks(player);
+                AttributeModifierHelper.updateAllForPlayer(player, this);
+            });
         }
-        loaded.values().forEach(config -> {
+        return report;
+    }
+
+    /**
+     * 构建并换上新的运行时配置。启动时（initial）以 bootstrap 注册的值为基准，并记下供以后 reload 比较。
+     */
+    private synchronized ReloadReport loadConfiguration(boolean initial) {
+        ConfigReload.Outcome outcome = ConfigReload.load(EnchantConfigLoader.enchantDir(),
+                getDataFolder().toPath().resolve("config.yml"), runtime,
+                initial ? MeowsEnchantsBootstrap.registered() : baseline, initial,
+                BukkitRegistries.INSTANCE, getSLF4JLogger());
+        RuntimeConfig next = outcome.runtime();
+        next.enchants().values().forEach(config -> {
             config.resolveSound();
             config.resolveParticle();
         });
-        setEnchantConfigs(loaded);
-        TillAction.validateOverlap(loaded, getSLF4JLogger());
-    }
-
-    private void reloadRuntimeConfig() {
-        reloadConfig();
-        skylliaCompatibilityEnabled = getConfig().getBoolean("skyllia_compatibility", false);
-        enchantingTableUsePlayerLevel = getConfig().getBoolean("enchanting_table.use_player_level", false);
-        enchantingTablePlayerLevelFactor = getConfig().getDouble("enchanting_table.player_level_factor", 500.0);
-        if (enchantingTablePlayerLevelFactor <= 0) {
-            enchantingTablePlayerLevelFactor = 500.0;
+        if (initial) baseline = outcome.baseline();
+        runtime = next;
+        tracking.apply(next.tracking());
+        if (next.enchants().isEmpty()) {
+            getSLF4JLogger().warn("No enchantment configs loaded; custom enchant triggers will not work.");
         }
-        enchantingTableBalanceBooks = getConfig().getBoolean("enchanting_table.balance_books", false);
+        TillAction.validateOverlap(next.enchants(), getSLF4JLogger());
+        return outcome.report();
     }
 }

@@ -1,7 +1,10 @@
 package com.windsor.meowsEnchants.config;
 
+import com.windsor.meowsEnchants.schema.EnchantSchema;
+import com.windsor.meowsEnchants.schema.Param;
 import net.kyori.adventure.key.Key;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
@@ -16,6 +19,7 @@ import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
@@ -64,31 +68,11 @@ public final class EnchantConfigLoader {
                     continue;
                 }
 
-                String name = (String) data.get("name");
-                List<String> description = parseStringList(data.get("description"));
-                Number maxLevelNum = (Number) data.get("max_level");
-                Number anvilCostNum = (Number) data.get("anvil_cost");
-                String applicable = parseApplicableItems(data.get("applicable_items"));
-                String trigger = (String) data.get("trigger");
-                String target = (String) data.get("target");
-                long cooldown = getLong(data.get("cooldown"), 0L);
-                List<Map<String, Object>> actionsList = parseActions(data.get("actions"));
-                List<String> conflicts = parseStringList(data.get("conflicts"));
-                Map<String, Object> soundData = asStringObjectMap(data.get("sound"));
-                Map<String, Object> particleData = asStringObjectMap(data.get("particle"));
-                EnchantConfig.EnchantingTableConfig enchantingTableConfig = parseEnchantingTableConfig(data);
-                EnchantConfig.VillagerTradeConfig villagerTradeConfig = parseVillagerTradeConfig(data);
-
-                if (name == null || maxLevelNum == null || anvilCostNum == null || applicable == null) {
+                EnchantConfig config = parse(id, data);
+                if (config == null) {
                     logger.warn("Config file " + file.getName() + " is missing required fields, skipping.");
                     continue;
                 }
-
-                EnchantConfig config = new EnchantConfig(
-                        id, name, description, maxLevelNum.intValue(), anvilCostNum.intValue(), applicable,
-                        trigger, target, cooldown, actionsList, conflicts,
-                        soundData, particleData, enchantingTableConfig, villagerTradeConfig
-                );
                 config.setLogger(logger);
 
                 Key key = Key.key("meowsenchants", id);
@@ -99,6 +83,44 @@ public final class EnchantConfigLoader {
             }
         }
         return configMap;
+    }
+
+    /**
+     * 按 {@link EnchantSchema} 的声明解析一个附魔文件。
+     *
+     * @return 缺少 name、max_level、anvil_cost、applicable_items 任一必填项时返回 null
+     */
+    public static @Nullable EnchantConfig parse(@NotNull String id, @NotNull Map<String, Object> data) {
+        String name = EnchantSchema.NAME.raw(data) instanceof String text ? text : null;
+        List<String> description = EnchantSchema.DESCRIPTION.read(data);
+        Number maxLevelNum = EnchantSchema.MAX_LEVEL.raw(data) instanceof Number number ? number : null;
+        Number anvilCostNum = EnchantSchema.ANVIL_COST.raw(data) instanceof Number number ? number : null;
+        String applicable = parseApplicableItems(EnchantSchema.APPLICABLE_ITEMS.raw(data));
+        String trigger = EnchantSchema.TRIGGER.read(data);
+        String target = EnchantSchema.TARGET.read(data);
+        long cooldown = EnchantSchema.COOLDOWN.read(data);
+        Map<String, Map<String, Object>> actions = parseActions(EnchantSchema.ACTIONS.raw(data));
+        List<String> conflicts = EnchantSchema.CONFLICTS.read(data);
+        Map<String, Object> soundData = asStringObjectMap(EnchantSchema.SOUND.raw(data));
+        Map<String, Object> particleData = asStringObjectMap(EnchantSchema.PARTICLE.raw(data));
+        EnchantConfig.EnchantingTableConfig enchantingTableConfig = parseEnchantingTableConfig(data);
+        EnchantConfig.VillagerTradeConfig villagerTradeConfig = parseVillagerTradeConfig(data);
+
+        if (name == null || maxLevelNum == null || anvilCostNum == null || applicable == null) {
+            return null;
+        }
+        // milk.12 把 trigger/target 强转成字符串，写成别的类型时整个文件被跳过
+        if (notString(EnchantSchema.TRIGGER.raw(data)) || notString(EnchantSchema.TARGET.raw(data))) {
+            return null;
+        }
+
+        return new EnchantConfig(
+                id, name, description, maxLevelNum.intValue(), anvilCostNum.intValue(), applicable,
+                trigger, target, cooldown,
+                actions == null ? null : new ArrayList<>(actions.values()),
+                actions == null ? null : new ArrayList<>(actions.keySet()),
+                conflicts, soundData, particleData, enchantingTableConfig, villagerTradeConfig, data
+        );
     }
 
     /** 当附魔目录不存在时，把插件 jar 内置的示例配置释放到磁盘。 */
@@ -168,31 +190,19 @@ public final class EnchantConfigLoader {
         return null;
     }
 
+    /** 动作键 → 动作参数，保持 yml 顺序；actions 不是 map 时返回 null（视为没有动作）。 */
     @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> parseActions(Object rawActions) {
+    private static Map<String, Map<String, Object>> parseActions(Object rawActions) {
         if (!(rawActions instanceof Map<?, ?> actionsMap)) {
             return null;
         }
-        List<Map<String, Object>> actions = new ArrayList<>();
-        for (Object value : actionsMap.values()) {
-            if (value instanceof Map<?, ?>) {
-                actions.add((Map<String, Object>) value);
+        Map<String, Map<String, Object>> actions = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : actionsMap.entrySet()) {
+            if (entry.getValue() instanceof Map<?, ?>) {
+                actions.put(String.valueOf(entry.getKey()), (Map<String, Object>) entry.getValue());
             }
         }
         return actions;
-    }
-
-    private static List<String> parseStringList(Object rawList) {
-        if (!(rawList instanceof List<?> list)) {
-            return null;
-        }
-        List<String> result = new ArrayList<>();
-        for (Object value : list) {
-            if (value instanceof String string) {
-                result.add(string);
-            }
-        }
-        return result;
     }
 
     @SuppressWarnings("unchecked")
@@ -203,66 +213,44 @@ public final class EnchantConfigLoader {
         return null;
     }
 
-    private static long getLong(Object raw, long defaultValue) {
-        return raw instanceof Number number ? number.longValue() : defaultValue;
+    private static boolean notString(Object raw) {
+        return raw != null && !(raw instanceof String);
     }
 
-    private static EnchantConfig.EnchantingTableConfig parseEnchantingTableConfig(Map<String, Object> data) {
-        boolean enabled = false;
-        double chance = 0.0;
-        int minCost = 0;
-        int maxCost = 30;
+    /** 有值且类型正确时取新值，否则保留 current。 */
+    private static <T> T override(Param<T> param, Map<?, ?> map, T current) {
+        Object raw = param.raw(map);
+        if (raw == null) return current;
+        T value = param.convert(raw);
+        return value == null ? current : value;
+    }
 
-        Object rawLegacyChance = data.get("enchanting_table_chance");
-        if (rawLegacyChance instanceof Number number) {
+    static EnchantConfig.EnchantingTableConfig parseEnchantingTableConfig(Map<String, Object> data) {
+        boolean enabled = EnchantSchema.TABLE_ENABLED.defaultValue();
+        double chance = EnchantSchema.TABLE_CHANCE.defaultValue();
+        int minCost = EnchantSchema.TABLE_MIN_COST.defaultValue();
+        int maxCost = EnchantSchema.TABLE_MAX_COST.defaultValue();
+
+        if (EnchantSchema.LEGACY_TABLE_CHANCE.raw(data) instanceof Number number) {
             chance = number.doubleValue();
             enabled = chance > 0.0;
         }
 
-        Object raw = data.get("enchanting_table");
-        if (raw instanceof Map<?, ?> map) {
-            Object rawEnabled = map.get("enabled");
-            if (rawEnabled instanceof Boolean value) {
-                enabled = value;
-            }
-            Object rawChance = map.get("chance");
-            if (rawChance instanceof Number number) {
-                chance = number.doubleValue();
-            }
-            Object rawMinCost = map.get("min_cost");
-            if (rawMinCost instanceof Number number) {
-                minCost = number.intValue();
-            }
-            Object rawMaxCost = map.get("max_cost");
-            if (rawMaxCost instanceof Number number) {
-                maxCost = number.intValue();
-            }
+        if (EnchantSchema.ENCHANTING_TABLE.raw(data) instanceof Map<?, ?> map) {
+            enabled = override(EnchantSchema.TABLE_ENABLED, map, enabled);
+            chance = override(EnchantSchema.TABLE_CHANCE, map, chance);
+            minCost = override(EnchantSchema.TABLE_MIN_COST, map, minCost);
+            maxCost = override(EnchantSchema.TABLE_MAX_COST, map, maxCost);
         }
 
         return new EnchantConfig.EnchantingTableConfig(enabled, chance, minCost, maxCost);
     }
 
-    private static EnchantConfig.VillagerTradeConfig parseVillagerTradeConfig(Map<String, Object> data) {
-        boolean enabled = false;
-        double chance = 0.0;
-        boolean treasure = false;
-
-        Object raw = data.get("villager_trades");
-        if (raw instanceof Map<?, ?> map) {
-            Object rawEnabled = map.get("enabled");
-            if (rawEnabled instanceof Boolean value) {
-                enabled = value;
-            }
-            Object rawChance = map.get("chance");
-            if (rawChance instanceof Number number) {
-                chance = number.doubleValue();
-            }
-            Object rawTreasure = map.get("treasure");
-            if (rawTreasure instanceof Boolean value) {
-                treasure = value;
-            }
-        }
-
-        return new EnchantConfig.VillagerTradeConfig(enabled, chance, treasure);
+    static EnchantConfig.VillagerTradeConfig parseVillagerTradeConfig(Map<String, Object> data) {
+        Map<String, Object> section = EnchantSchema.VILLAGER_TRADES.read(data);
+        return new EnchantConfig.VillagerTradeConfig(
+                EnchantSchema.TRADE_ENABLED.read(section),
+                EnchantSchema.TRADE_CHANCE.read(section),
+                EnchantSchema.TRADE_TREASURE.read(section));
     }
 }

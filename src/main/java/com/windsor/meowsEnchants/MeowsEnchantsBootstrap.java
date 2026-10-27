@@ -3,6 +3,7 @@ package com.windsor.meowsEnchants;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.arrowrain.ArrowRainConfig;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
+import com.windsor.meowsEnchants.config.RegisteredEnchant;
 import com.windsor.meowsEnchants.tracking.TrackingConfig;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
@@ -18,7 +19,6 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.inventory.EquipmentSlotGroup;
 import org.bukkit.inventory.ItemType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -28,8 +28,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MeowsEnchantsBootstrap implements PluginBootstrap {
+
+    /** 成功注册进原版注册表的附魔及其注册值；注册表此后冻结，reload 以它判断哪些改动要重启。 */
+    private static final Map<String, RegisteredEnchant> REGISTERED = new ConcurrentHashMap<>();
+
+    public static Map<String, RegisteredEnchant> registered() {
+        return Map.copyOf(REGISTERED);
+    }
 
     @Override
     public void bootstrap(@NotNull BootstrapContext context) {
@@ -89,6 +97,7 @@ public class MeowsEnchantsBootstrap implements PluginBootstrap {
 
                         Component displayName = MiniMessage.miniMessage().deserialize(config.getDisplayName());
                         TypedKey<Enchantment> typedKey = TypedKey.create(RegistryKey.ENCHANTMENT, enchantKey);
+                        EnchantConfig.RegistrySettings registry = config.getRegistrySettings();
 
                         try {
                             event.registry().register(
@@ -96,12 +105,14 @@ public class MeowsEnchantsBootstrap implements PluginBootstrap {
                                     builder -> {
                                         builder.description(displayName)
                                                 .supportedItems(supportedTag)
-                                                .activeSlots(EquipmentSlotGroup.ANY)
+                                                .activeSlots(registry.slotGroup())
                                                 .anvilCost(config.getAnvilCost())
                                                 .maxLevel(config.getMaxLevel())
-                                                .weight(1)
-                                                .minimumCost(EnchantmentRegistryEntry.EnchantmentCost.of(30, 0))
-                                                .maximumCost(EnchantmentRegistryEntry.EnchantmentCost.of(30, 0));
+                                                .weight(registry.weight())
+                                                .minimumCost(EnchantmentRegistryEntry.EnchantmentCost.of(
+                                                        registry.minCost(), registry.minCostPerLevel()))
+                                                .maximumCost(EnchantmentRegistryEntry.EnchantmentCost.of(
+                                                        registry.maxCost(), registry.maxCostPerLevel()));
 
                                         RegistryKeySet<Enchantment> conflictSet = config.resolveConflictKeySet();
                                         if (!conflictSet.isEmpty()) {
@@ -112,6 +123,7 @@ public class MeowsEnchantsBootstrap implements PluginBootstrap {
 
                             config.resolveSound();
                             config.resolveParticle();
+                            REGISTERED.put(config.getId(), RegisteredEnchant.of(config));
                             logger.info("Registered custom enchantment: " + config.getId());
                         } catch (Exception e) {
                             logger.error("Failed to register enchant " + config.getId(), e);

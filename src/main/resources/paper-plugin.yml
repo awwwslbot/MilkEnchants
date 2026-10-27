@@ -17,3 +17,8 @@ dependencies:
       join-classpath: true
 
 authors: [ Windsor_Macmillan ]
+
+permissions:
+  meowsenchants.reload:
+    description: 'Reload config.yml and enchant configs with /enchants reload'
+    default: op

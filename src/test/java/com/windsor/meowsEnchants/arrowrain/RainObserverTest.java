@@ -91,7 +91,7 @@ class RainObserverTest {
         final RegionScheduler regions = mock(RegionScheduler.class);
         final ItemStack liveBow = mock(ItemStack.class);
         final ItemStack snapshot = mock(ItemStack.class);
-        final ArrowRainListener listener = new ArrowRainListener(plugin);
+        final ArrowRainListener listener = BundledRain.listener(plugin);
         final AtomicReference<Consumer<ScheduledTask>> drop = new AtomicReference<>();
         final Location shotLocation = new Location(world, 0, 64, 0);
 

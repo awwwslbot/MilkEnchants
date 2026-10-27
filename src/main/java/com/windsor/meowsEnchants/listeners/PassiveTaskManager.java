@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.actions.impl.AttributeModifierHelper;
 import com.windsor.meowsEnchants.config.EnchantConfig;
@@ -8,13 +9,14 @@ import net.kyori.adventure.key.Key;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PassiveTaskManager {
 
-    private static final Map<UUID, SchedulerCompat.Task> passiveTasks = new HashMap<>();
+    // 各玩家在自己的区域线程上启停任务，所以用并发表
+    private static final Map<UUID, SchedulerCompat.Task> passiveTasks = new ConcurrentHashMap<>();
 
     public static void startTaskForPlayer(MeowsEnchants plugin, Player player) {
         stopTaskForPlayer(player);
@@ -22,7 +24,7 @@ public class PassiveTaskManager {
 
         // 计算所有被动附魔的最大冷却 tick
         long maxCooldown = getMaxCooldownTicksForPlayer(player);
-        long period = Math.max(20, maxCooldown);
+        long period = Math.max(MeowsEnchants.getGlobalSettings().passiveMinPeriodTicks(), maxCooldown);
         long initialDelay = period;
 
         SchedulerCompat.Task task = SchedulerCompat.runAtFixedRate(player, plugin,
@@ -32,7 +34,7 @@ public class PassiveTaskManager {
                         passiveTasks.remove(uuid);
                         return;
                     }
-                    EnchantTriggerHelper.checkAndTrigger(player, "PASSIVE",
+                    EnchantTriggerHelper.checkAndTrigger(player, Trigger.PASSIVE.name(),
                             EnchantTriggerHelper.getSlotsForTrigger(player));
                     AttributeModifierHelper.updateAllForPlayer(player, plugin);
                 },
@@ -62,7 +64,7 @@ public class PassiveTaskManager {
         for (ItemStack item : EnchantTriggerHelper.getSlotsForTrigger(player)) {
             for (Key key : EnchantTriggerHelper.getCustomEnchantsOnItem(item)) {
                 EnchantConfig config = MeowsEnchants.getEnchantConfigs().get(key);
-                if (config != null && "PASSIVE".equalsIgnoreCase(config.getTrigger())) {
+                if (config != null && Trigger.PASSIVE.name().equalsIgnoreCase(config.getTrigger())) {
                     long ticks = config.getCooldownTicks();
                     if (ticks > max) max = ticks;
                 }

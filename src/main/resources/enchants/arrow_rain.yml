@@ -25,3 +25,30 @@ cooldown: 0
 # Dedicated shot/impact lifecycle; an empty action map prevents legacy multi_arrow double firing.
 mechanic: landing_arrow_rain_v1
 actions: {}
+
+# Arrow rain tunables. Keys missing from an older file use these defaults.
+# 落地箭雨参数；旧文件缺少的键按这里的默认值。按等级的项可写固定值、{base, per_level} 或逐级列表：
+# 列表第 L 项是 L 级的值，等级超过列表长度时取最后一项
+arrow_rain:
+  # 每次箭雨最多的雨箭数；无无限时同时额外消耗这么多支箭
+  arrows: [8, 16, 32, 64, 128]
+  # 落点圆盘半径（格）
+  radius: [1.5, 2.5, 3.5, 4.5, 5.5]
+  # 每次成功射出在原版 1 点之外额外扣弓的耐久
+  extra_durability: [1, 3, 7, 15, 31]
+  # 雨箭在第 1 tick 到第这么多 tick 之间均匀生成
+  release_ticks: [20, 40, 60, 80, 100]
+  # 雨箭生成在命中点上方多少格
+  height: 20.0
+  # 下落初速度（格/tick），之后按原版重力和阻力
+  speed: 2.5
+  # 雨箭生成后多少 tick 被清除
+  lifetime_ticks: 30
+  # 原箭射出后这么久还没命中就放弃这次箭雨
+  source_max_ticks: 1200
+  # 雨箭飞行时每 tick 生成的轨迹粒子，所有人可见
+  trail:
+    type: CRIT
+    count: 2
+    offset: 0.02
+    speed: 0.0

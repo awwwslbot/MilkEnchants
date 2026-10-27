@@ -27,13 +27,13 @@ import org.junit.jupiter.api.Test;
 
 class AmmunitionLaunchTest {
     @Test void successfulLaunchPaysExtraRainArrowsOnceForEveryLevel() {
-        int initial = RainPattern.count(RainPattern.MAX_LEVEL) + 1;
-        for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
+        int initial = BundledRain.RAIN.count(BundledRain.MAX_LEVEL) + 1;
+        for (int level = 1; level <= BundledRain.MAX_LEVEL; level++) {
             Fixture f = new Fixture(level, initial, false);
             f.listener.onLaunch(f.launch);
             f.listener.onLaunch(f.launch);
-            assertEquals(initial - RainPattern.count(level), f.amount(9));
-            assertEquals(RainPattern.count(level), f.captureRainCount());
+            assertEquals(initial - BundledRain.RAIN.count(level), f.amount(9));
+            assertEquals(BundledRain.RAIN.count(level), f.captureRainCount());
         }
     }
 
@@ -57,14 +57,14 @@ class AmmunitionLaunchTest {
     }
 
     @Test void nativeFreeShotAndCreativeDoNotConsumeExtraAmmunition() {
-        int initial = RainPattern.count(RainPattern.MAX_LEVEL) + 1;
+        int initial = BundledRain.RAIN.count(BundledRain.MAX_LEVEL) + 1;
         for (boolean creative : new boolean[]{false, true}) {
-            for (int level = 1; level <= RainPattern.MAX_LEVEL; level++) {
+            for (int level = 1; level <= BundledRain.MAX_LEVEL; level++) {
                 Fixture f = new Fixture(level, initial, !creative);
                 if (creative) when(f.player.getGameMode()).thenReturn(GameMode.CREATIVE);
                 f.listener.onLaunch(f.launch);
                 assertEquals(initial, f.amount(9));
-                assertEquals(RainPattern.count(level), f.captureRainCount());
+                assertEquals(BundledRain.RAIN.count(level), f.captureRainCount());
             }
         }
     }
@@ -126,7 +126,7 @@ class AmmunitionLaunchTest {
         final AbstractArrow source = mock(AbstractArrow.class);
         final World world = mock(World.class);
         final RegionScheduler regions = mock(RegionScheduler.class);
-        final ArrowRainListener listener = new ArrowRainListener(plugin);
+        final ArrowRainListener listener = BundledRain.listener(plugin);
         final ProjectileLaunchEvent launch = mock(ProjectileLaunchEvent.class);
         final Map<Integer, ItemStack> slots = new HashMap<>();
         final Map<ItemStack, String> variants = new HashMap<>();

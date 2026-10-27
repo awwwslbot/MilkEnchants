@@ -19,7 +19,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
  */
 public final class CombatTracker implements Listener, TargetRules.Combat {
     private final Map<UUID, Long> lastPvp = new ConcurrentHashMap<>();
-    private final long windowNanos;
+    private volatile long windowNanos;
     private final LongSupplier clock;
 
     public CombatTracker(long windowNanos) { this(windowNanos, System::nanoTime); }
@@ -47,6 +47,9 @@ public final class CombatTracker implements Listener, TargetRules.Combat {
         if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player) return player;
         return null;
     }
+
+    /** pvp_combat_seconds changed by a reload; applies to every later check. */
+    public void setWindowNanos(long windowNanos) { this.windowNanos = windowNanos; }
 
     @Override
     public boolean inCombat(UUID player) {

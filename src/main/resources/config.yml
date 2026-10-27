@@ -1,5 +1,17 @@
 # 如果你在使用Skyllia插件，请启用此项。此功能用于限制附魔仅在空岛保护检查通过后才能生效，并且不会跨岛屿范围生效
 skyllia_compatibility: false
+# Skyllia 岛屿边长：主城区域为 (0,0)–(边长,边长)，岛屿按边长对齐分格
+skyllia_region_size: 512
+# 开启 Skyllia 兼容时，非 OP 在主城区域内触发附魔会跳过这些动作类型
+skyllia_protected_actions:
+  - explosion
+  - hook
+  - multi_arrow
+  - multi_break
+  - potion_effect
+  - shockwave
+  - till
+  - vacuum_drops
 
 # 附魔台获取附魔机制
 enchanting_table:
@@ -7,5 +19,30 @@ enchanting_table:
   use_player_level: false
   # 玩家参照等级。高于此等级时附魔概率将按照比例增加
   player_level_factor: 500.0
-  # 平衡附魔书的获取概率。启用时，在附魔台附魔书获得自定义附魔的概率只有武器装备的1/4
+  # 平衡附魔书的获取概率。启用时，在附魔台附魔书获得自定义附魔的概率除以 book_divisor
   balance_books: false
+  # 从最高级往下逐级判定，每级概率 = 附魔的 chance ÷ level_chance_divisor^等级
+  level_chance_divisor: 2.0
+  book_divisor: 4.0
+
+# 村民交易：附魔书价格在 [最低价, 最高价] 内均匀随机，最低价 = price_min_base + price_min_per_level × 等级，
+# 最高价 = price_max_base + price_max_per_level × 等级；宝藏附魔乘 treasure_multiplier，再限制在 [price_floor, price_cap]
+villager_trades:
+  price_min_base: 2
+  price_min_per_level: 3
+  price_max_base: 6
+  price_max_per_level: 13
+  treasure_multiplier: 2
+  price_floor: 1
+  price_cap: 64
+  # 原交易没有次数上限时使用
+  default_max_uses: 12
+  # 和带有未开放附魔交易的村民交易时，交易被取消、村民被杀，并向玩家发送这句
+  polluted_message: "&f[&b附魔&f] &c该村民交易已被污染！"
+
+# 周期触发器
+triggers:
+  # PASSIVE 附魔的触发周期 = 玩家身上 PASSIVE 附魔的最大冷却，但不短于此值（tick）
+  passive_min_period_ticks: 20
+  # SNEAK_HOLD / SPRINT_HOLD 的触发周期 = 同触发器附魔的最大冷却，但不短于此值（tick）
+  hold_min_period_ticks: 20

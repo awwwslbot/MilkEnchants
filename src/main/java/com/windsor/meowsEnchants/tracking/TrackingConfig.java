@@ -1,12 +1,13 @@
 package com.windsor.meowsEnchants.tracking;
 
-import com.windsor.meowsEnchants.config.EnchantConfigLoader;
+import com.windsor.meowsEnchants.schema.EnchantSchema;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
 import java.util.logging.Logger;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
@@ -19,38 +20,45 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 /** Installs only a missing tracking.yml and builds the dedicated listener from it. */
 public final class TrackingConfig {
+    public static final String FILE = "tracking.yml";
+    public static final String SECTION = "tracking";
     public static final String MECHANIC = "tracking_v1";
     private TrackingConfig() {}
 
     public static void installMissing(Path directory) throws IOException {
-        try (InputStream stream = TrackingConfig.class.getResourceAsStream("/enchants/tracking.yml")) {
+        try (InputStream stream = TrackingConfig.class.getResourceAsStream("/enchants/" + FILE)) {
             if (stream == null) throw new IOException("Missing tracking.yml resource");
-            try { Files.copy(stream, directory.resolve("tracking.yml")); }
+            try { Files.copy(stream, directory.resolve(FILE)); }
             catch (FileAlreadyExistsException ignored) { /* Never overwrite server configuration. */ }
         }
     }
 
     static TrackingSettings load(Path file) {
-        return TrackingSettings.from(YamlConfiguration.loadConfiguration(file.toFile()).getConfigurationSection("tracking"));
+        return TrackingSettings.from(YamlConfiguration.loadConfiguration(file.toFile()).getConfigurationSection(SECTION));
     }
 
+    /**
+     * 由 tracking.yml 的原始内容得到跟踪参数；文件不存在或没有 {@code mechanic: tracking_v1} 时返回 null（跟踪停用）。
+     */
+    public static TrackingSettings settings(Map<String, Object> yaml) {
+        if (yaml == null || !MECHANIC.equals(EnchantSchema.MECHANIC.read(yaml))) return null;
+        return TrackingSettings.fromYaml(section(yaml.get(SECTION)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> section(Object raw) {
+        return raw instanceof Map<?, ?> map ? (Map<String, Object>) map : null;
+    }
+
+    /** The listener starts disabled; {@link TrackingListener#apply} feeds it the loaded settings. */
     public static TrackingListener createListener(JavaPlugin plugin) {
-        Path file = EnchantConfigLoader.enchantDir().resolve("tracking.yml");
-        var yaml = YamlConfiguration.loadConfiguration(file.toFile());
-        if (!MECHANIC.equals(yaml.getString("mechanic"))) {
-            plugin.getLogger().warning("Tracking disabled: tracking.yml is missing or has no 'mechanic: " + MECHANIC + "'.");
-            return null;
-        }
-        TrackingSettings settings = TrackingSettings.from(yaml.getConfigurationSection("tracking"));
-        CombatTracker combat = new CombatTracker(settings.pvpCombatNanos());
+        CombatTracker combat = new CombatTracker(TrackingSettings.DEFAULTS.pvpCombatNanos());
         ResidenceProtection residence = ResidenceProtection.bind(
                 () -> Bukkit.getPluginManager().getPlugin("Residence"), plugin.getLogger());
-        TargetRules rules = new TargetRules(settings, combat, residence, TargetRules.VANILLA_PVP);
-        return new TrackingListener(plugin, settings, combat, rules, particle(settings.particle(), plugin.getLogger()),
-                chime(settings, plugin.getLogger()));
+        return new TrackingListener(plugin, combat, residence, TargetRules.VANILLA_PVP);
     }
 
-    private static Sound chime(TrackingSettings settings, Logger logger) {
+    static Sound chime(TrackingSettings settings, Logger logger) {
         Key key;
         try {
             key = Key.key(settings.sound());
@@ -62,7 +70,7 @@ public final class TrackingConfig {
         return Sound.sound(key, category(settings.soundCategory()), settings.soundVolume(), settings.soundPitch());
     }
 
-    private static Particle particle(String name, Logger logger) {
+    static Particle particle(String name, Logger logger) {
         try {
             Particle particle = Particle.valueOf(name.toUpperCase(Locale.ROOT));
             if (particle.getDataType() == Void.class) return particle;

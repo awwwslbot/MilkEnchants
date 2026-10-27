@@ -37,6 +37,8 @@ final class Tracker {
     final Shooter.View view;
     final long createdNanos = System.nanoTime();
     private final TrackingListener owner;
+    /** The listener's settings snapshot when this projectile was fired. */
+    final TrackingListener.Runtime runtime;
     private final TrackingSettings settings;
     private final TargetRules rules;
     private final Runnable stopTrail;
@@ -48,10 +50,12 @@ final class Tracker {
     private int age;
     private boolean trailReplaced;
 
-    Tracker(TrackingListener owner, Projectile projectile, Kind kind, int level, Shooter shooter, Location shotLocation, Runnable stopTrail) {
+    Tracker(TrackingListener owner, TrackingListener.Runtime runtime, Projectile projectile, Kind kind, int level,
+            Shooter shooter, Location shotLocation, Runnable stopTrail) {
         this.owner = owner;
-        this.settings = owner.settings();
-        this.rules = owner.rules();
+        this.runtime = runtime;
+        this.settings = runtime.settings();
+        this.rules = runtime.rules();
         this.id = projectile.getUniqueId();
         this.projectile = projectile;
         this.kind = kind;
@@ -118,7 +122,7 @@ final class Tracker {
             if (!trailReplaced && stopTrail != null) stopTrail.run(); // Rain locks are silent.
             trailReplaced = true;
         } else {
-            owner.chime(shooter, world.getGameTime());
+            owner.chime(runtime, shooter, world.getGameTime());
         }
     }
 
@@ -140,7 +144,7 @@ final class Tracker {
         // setVelocity leaves the rotation alone; keep the model along the new flight direction.
         projectile.setRotation(PathGeometry.yaw(next), PathGeometry.pitch(next));
         RotationSync.mark(projectile, owner.logger());
-        owner.emit(location.subtract(next.clone().normalize().multiply(settings.tailOffset())));
+        owner.emit(runtime, location.subtract(next.clone().normalize().multiply(settings.tailOffset())));
     }
 
     /**

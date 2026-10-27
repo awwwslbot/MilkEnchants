@@ -2,6 +2,7 @@ package com.windsor.meowsEnchants.listeners;
 
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.config.EnchantConfig;
+import com.windsor.meowsEnchants.config.GlobalSettings;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
 import net.kyori.adventure.key.Key;
@@ -67,15 +68,16 @@ public class EnchantTableListener implements Listener {
                 continue;
             }
 
+            GlobalSettings global = MeowsEnchants.getGlobalSettings();
             double randomNumber = random.nextDouble();
             int selectedLevel = 0;
             for (int level = config.getMaxLevel(); level >= 1; level--) {
-                double finalChance = tableConfig.getChance() / Math.pow(2, level);
-                if (MeowsEnchants.isEnchantingTableUsePlayerLevel()) {
-                    finalChance *= event.getEnchanter().getLevel() / MeowsEnchants.getEnchantingTablePlayerLevelFactor();
+                double finalChance = global.tableLevelChance(tableConfig.getChance(), level);
+                if (global.tableUsePlayerLevel()) {
+                    finalChance *= event.getEnchanter().getLevel() / global.tablePlayerLevelFactor();
                 }
-                if (MeowsEnchants.isEnchantingTableBalanceBooks() && item.getType() == Material.BOOK) {
-                    finalChance /= 4.0;
+                if (global.tableBalanceBooks() && item.getType() == Material.BOOK) {
+                    finalChance /= global.tableBookDivisor();
                 }
                 if (randomNumber < finalChance) {
                     selectedLevel = level;

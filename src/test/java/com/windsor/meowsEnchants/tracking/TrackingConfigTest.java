@@ -1,6 +1,7 @@
 package com.windsor.meowsEnchants.tracking;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.windsor.meowsEnchants.actions.ListScaling;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,7 +65,7 @@ class TrackingConfigTest {
         TrackingConfig.installMissing(directory);
         TrackingSettings settings = TrackingConfig.load(directory.resolve("tracking.yml"));
         assertEquals(TrackingSettings.DEFAULTS, settings);
-        assertEquals(List.of(1.5, 2.5, 3.5), settings.radii());
+        assertEquals(new ListScaling(List.of(1.5, 2.5, 3.5)), settings.radii());
         assertEquals(5, settings.scanIntervalTicks());
         assertEquals(10, settings.lookaheadTicks());
         assertEquals(20.0, settings.maxTurnDegrees());
@@ -79,7 +80,7 @@ class TrackingConfigTest {
     }
 
     @Test void olderFilesWithoutTunablesFallBackKeyByKey() throws Exception {
-        assertEquals(TrackingSettings.DEFAULTS, TrackingSettings.from(null));
+        assertEquals(TrackingSettings.DEFAULTS, TrackingSettings.from((org.bukkit.configuration.ConfigurationSection) null));
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.loadFromString("""
                 tracking:
@@ -92,7 +93,7 @@ class TrackingConfigTest {
                     count_max: 1
                 """);
         TrackingSettings settings = TrackingSettings.from(yaml.getConfigurationSection("tracking"));
-        assertEquals(List.of(2.0, 2.5, 3.5), settings.radii());
+        assertEquals(new ListScaling(List.of(2.0, 2.5, 3.5)), settings.radii(), "a short list keeps milk.12 per-index defaults");
         assertEquals(1, settings.scanIntervalTicks(), "clamped to at least one tick");
         assertEquals(30.0, settings.maxTurnDegrees());
         assertEquals(10, settings.lookaheadTicks());

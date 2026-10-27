@@ -120,17 +120,17 @@ class ImpactSnapshotTest {
     }
 
     @Test void finalDropOfEveryLevelHasTimeToFallBeforeShotCompletion() {
-        for (int level : new int[]{3, RainPattern.MAX_LEVEL}) {
+        for (int level : new int[]{3, BundledRain.MAX_LEVEL}) {
             Fixture f = new Fixture(level);
             try (var bukkit = mockStatic(Bukkit.class)) {
                 bukkit.when(Bukkit::getRegionScheduler).thenReturn(f.regions);
                 f.listener.onHit(f.hit);
             }
-            long minimumCompletionTick = RainPattern.lastSpawnTick(level)
-                    + (long) Math.ceil(20.0 / RainPattern.SPEED) + 1;
+            long minimumCompletionTick = BundledRain.RAIN.lastSpawnTick(level)
+                    + (long) Math.ceil(20.0 / BundledRain.RAIN.speed()) + 1;
             assertTrue(f.completionTick.get() >= minimumCompletionTick,
                     "Shot completion must not cancel/remove the final drops released at tick "
-                            + RainPattern.lastSpawnTick(level));
+                            + BundledRain.RAIN.lastSpawnTick(level));
         }
     }
 
@@ -141,7 +141,7 @@ class ImpactSnapshotTest {
         final AbstractArrow source = mock(AbstractArrow.class);
         final World world = mock(World.class);
         final RegionScheduler regions = mock(RegionScheduler.class);
-        final ArrowRainListener listener = new ArrowRainListener(plugin);
+        final ArrowRainListener listener = BundledRain.listener(plugin);
         final ProjectileHitEvent hit = mock(ProjectileHitEvent.class);
         final AtomicReference<Location> completionCentre = new AtomicReference<>();
         final AtomicLong completionTick = new AtomicLong();

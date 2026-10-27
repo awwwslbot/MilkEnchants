@@ -1,26 +1,19 @@
 package com.windsor.meowsEnchants.tracking;
 
 import com.windsor.meowsEnchants.tracking.TargetChoice.Priority;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import org.bukkit.GameMode;
 import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.entity.AbstractVillager;
-import org.bukkit.entity.Allay;
-import org.bukkit.entity.CopperGolem;
-import org.bukkit.entity.Enderman;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.IronGolem;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
-import org.bukkit.entity.PigZombie;
-import org.bukkit.entity.Piglin;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Snowman;
 import org.bukkit.entity.Tameable;
 import org.bukkit.metadata.MetadataValue;
 
@@ -50,12 +43,6 @@ final class TargetRules {
         return value == null || value;
     };
 
-    /** Friendly mobs that are never targets (and never hurt by a tracking firework's blast). */
-    static final List<Class<? extends Mob>> NEVER_TRACKED = List.of(
-            AbstractVillager.class, // villagers and wandering traders
-            IronGolem.class, Snowman.class, CopperGolem.class,
-            Allay.class);
-
     private final TrackingSettings settings;
     private final Combat combat;
     private final Protection protection;
@@ -79,16 +66,22 @@ final class TargetRules {
         if (entity instanceof Player player) return pvpPlayer(player, shooter) ? Priority.PVP_PLAYER : null;
         if (!(entity instanceof Mob mob) || isNamed(mob)) return null;
         if (mob instanceof Enemy) {
-            // Neutral monsters count only while they are attacking a player.
-            if ((mob instanceof Enderman || mob instanceof PigZombie || mob instanceof Piglin)
-                    && !(mob.getTarget() instanceof Player)) return null;
+            // Neutral monsters (neutral_until_attacking) count only while they are attacking a player.
+            if (isAny(mob, settings.neutralUntilAttacking()) && !(mob.getTarget() instanceof Player)) return null;
             return Priority.HOSTILE;
         }
         if (mob instanceof Tameable tameable && tameable.isTamed()) return null;
-        for (Class<? extends Mob> type : NEVER_TRACKED) if (type.isInstance(mob)) return null;
+        // Friendly mobs that are never targets, nor hurt by a tracking firework's blast (never_tracked).
+        if (isAny(mob, settings.neverTracked())) return null;
         if (mob.isLeashed()) return null;
         for (Entity passenger : mob.getPassengers()) if (passenger instanceof Player) return null;
         return Priority.FRIENDLY;
+    }
+
+    /** Exact entity type match (a configured ZOMBIE does not cover husks or drowned). */
+    private static boolean isAny(Entity entity, Set<String> types) {
+        EntityType type = entity.getType();
+        return type != null && types.contains(type.name());
     }
 
     private boolean pvpPlayer(Player target, Shooter.View shooter) {
