@@ -3,7 +3,8 @@ package com.windsor.meowsEnchants.listeners;
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.actions.Action;
 import com.windsor.meowsEnchants.actions.ActionContext;
-import com.windsor.meowsEnchants.actions.ActionLoader;
+import com.windsor.meowsEnchants.actions.ActionRegistry;
+import com.windsor.meowsEnchants.actions.ScalingFunction;
 import com.windsor.meowsEnchants.config.EnchantConfig;
 import com.windsor.meowsEnchants.utils.SkylliaCompatibility;
 import net.kyori.adventure.key.Key;
@@ -30,23 +31,17 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.DoubleSupplier;
 
 public final class EnchantTriggerHelper {
 
     private static final Map<UUID, Map<Key, Long>> cooldowns = new ConcurrentHashMap<>();
 
     private EnchantTriggerHelper() {}
-    // 禁止在主城区域触发的动作类名（不含包名）
-    private static final Set<String> PROTECTED_ACTIONS = Set.of(
-            "ExplosionAction",
-            "HookAction",
-            "MultiArrowAction",
-            "MultiBreakAction",
-            "PotionEffectAction",
-            "ShockwaveAction",
-            "TillAction",
-            "VacuumDropsAction"
-    );
+
+    /** 一个已构造的动作和它的公共参数。 */
+    record LoadedAction(String type, Action action, ScalingFunction chance) {}
 
     // ---------- 槽位获取 ----------
     public static List<ItemStack> getSlotsForTrigger(Player player) {
@@ -266,30 +261,17 @@ public final class EnchantTriggerHelper {
             );
 
             // 加载并执行所有动作
-            List<Action> actions = ActionLoader.loadActionsFromList(config.getActions());
-            boolean allSuccess = true;
+            List<LoadedAction> actions = loadActions(config.getActions());
 
             // 如果玩家在主城区域，过滤掉受保护的动作
             if (isInProtectedRegion(player)) {
+                Set<String> protectedActions = MeowsEnchants.getGlobalSettings().skylliaProtectedActions();
                 actions = actions.stream()
-                        .filter(action -> !PROTECTED_ACTIONS.contains(action.getClass().getSimpleName()))
+                        .filter(action -> !protectedActions.contains(action.type()))
                         .toList();
             }
 
-            for (Action action : actions) {
-                try {
-                    boolean success = action.execute(context);
-                    if (!success) {
-                        allSuccess = false;
-                        break; // 中断后续动作
-                    }
-                } catch (Exception e) {
-                    Bukkit.getLogger().warning("[MeowsEnchants] 执行动作时出错: " + e.getMessage());
-                    e.printStackTrace();
-                    allSuccess = false;
-                    break;
-                }
-            }
+            boolean allSuccess = runActions(actions, context, () -> ThreadLocalRandom.current().nextDouble());
 
             // 只有所有动作都成功执行，才发送调试消息并设置冷却
             if (allSuccess) {
@@ -299,6 +281,60 @@ public final class EnchantTriggerHelper {
                 setCooldown(player, key, config.getCooldown());
             }
         }
+    }
+
+    /**
+     * 按顺序执行动作：先掷该动作的 chance，再执行；任何一个没中、返回 false 或抛异常都中止后续动作。
+     *
+     * @return 全部成功（调用方据此决定是否播效果、进冷却）
+     */
+    static boolean runActions(List<LoadedAction> actions, ActionContext context, DoubleSupplier roll) {
+        for (LoadedAction loaded : actions) {
+            // 通用触发概率：没中等同动作失败（中止后续动作、不进冷却、不播效果）
+            if (loaded.chance() != null
+                    && !chancePasses(loaded.chance(), context.getEnchantLevel(), roll.getAsDouble())) {
+                return false;
+            }
+            try {
+                boolean success = loaded.action().execute(context);
+                if (!success) {
+                    return false; // 中断后续动作
+                }
+            } catch (Exception e) {
+                Bukkit.getLogger().warning("[MeowsEnchants] 执行动作时出错: " + e.getMessage());
+                e.printStackTrace();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** roll 是 [0, 1) 的随机数；概率不大于 0 时永不通过，不小于 1 时必定通过。 */
+    static boolean chancePasses(ScalingFunction chance, int level, double roll) {
+        double value = chance.getValue(level);
+        return value > 0 && roll < value;
+    }
+
+    /**
+     * 按顺序构造动作；构造失败（缺必填参数、写法不合法、未知类型）的动作被跳过并记日志，其余照常执行。
+     * 没写 chance 的动作不掷骰。
+     */
+    static List<LoadedAction> loadActions(List<Map<String, Object>> actionDataList) {
+        List<LoadedAction> actions = new ArrayList<>(actionDataList.size());
+        for (Map<String, Object> actionData : actionDataList) {
+            Object type = actionData.get("type");
+            if (!(type instanceof String typeName)) {
+                continue;
+            }
+            try {
+                ScalingFunction chance = ActionRegistry.CHANCE.isPresent(actionData)
+                        ? ActionRegistry.CHANCE.read(actionData) : null;
+                actions.add(new LoadedAction(typeName, ActionRegistry.create(typeName, actionData), chance));
+            } catch (IllegalArgumentException e) {
+                Bukkit.getLogger().warning("[ActionLoader] 创建动作失败: " + e.getMessage());
+            }
+        }
+        return actions;
     }
 
     // ---------- 简化版本（不带事件上下文） ----------
