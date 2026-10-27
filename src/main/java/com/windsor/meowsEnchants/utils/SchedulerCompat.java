@@ -1,13 +1,22 @@
 package com.windsor.meowsEnchants.utils;
 
+import io.papermc.paper.threadedregions.scheduler.EntityScheduler;
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.lang.reflect.Method;
 import java.util.function.Consumer;
 
+/**
+ * 在实体自己的调度器上排任务（Folia 下即实体所在区域的线程，Paper 下即主线程）。
+ * <p>
+ * 直接用 Paper API 的 {@link EntityScheduler} 和 {@link ScheduledTask} 接口。以前这里用反射，
+ * 在实现类上找 {@code cancel}：Folia 的任务实现类不是 public，调用抛 IllegalAccessException
+ * 又被吞掉，所以 Folia 上所有取消都不生效。
+ * 实体已经移除（调度器返回 null）时，和以前一样退回 Bukkit 调度器。
+ */
 public final class SchedulerCompat {
 
     private SchedulerCompat() {
@@ -18,9 +27,9 @@ public final class SchedulerCompat {
     }
 
     public static Task run(Entity entity, Plugin plugin, Consumer<Task> task) {
-        Task foliaTask = trySchedule(entity, plugin, task, "run", null, null);
-        if (foliaTask != null) {
-            return foliaTask;
+        ScheduledTask scheduled = entity.getScheduler().run(plugin, wrap(task), null);
+        if (scheduled != null) {
+            return of(scheduled);
         }
 
         BukkitTask bukkitTask = Bukkit.getScheduler().runTask(plugin, () -> task.accept(() -> {
@@ -29,9 +38,9 @@ public final class SchedulerCompat {
     }
 
     public static Task runDelayed(Entity entity, Plugin plugin, Consumer<Task> task, long delayTicks) {
-        Task foliaTask = trySchedule(entity, plugin, task, "runDelayed", delayTicks, null);
-        if (foliaTask != null) {
-            return foliaTask;
+        ScheduledTask scheduled = entity.getScheduler().runDelayed(plugin, wrap(task), null, delayTicks);
+        if (scheduled != null) {
+            return of(scheduled);
         }
 
         BukkitTask bukkitTask = Bukkit.getScheduler().runTaskLater(plugin, () -> task.accept(() -> {
@@ -41,9 +50,10 @@ public final class SchedulerCompat {
 
     public static Task runAtFixedRate(Entity entity, Plugin plugin, Consumer<Task> task,
                                       long initialDelayTicks, long periodTicks) {
-        Task foliaTask = trySchedule(entity, plugin, task, "runAtFixedRate", initialDelayTicks, periodTicks);
-        if (foliaTask != null) {
-            return foliaTask;
+        ScheduledTask scheduled = entity.getScheduler().runAtFixedRate(plugin, wrap(task), null,
+                initialDelayTicks, periodTicks);
+        if (scheduled != null) {
+            return of(scheduled);
         }
 
         final BukkitTask[] handle = new BukkitTask[1];
@@ -58,48 +68,12 @@ public final class SchedulerCompat {
         return () -> handle[0].cancel();
     }
 
-    private static Task trySchedule(Entity entity, Plugin plugin, Consumer<Task> task,
-                                    String methodName, Long delayOrInitialDelay, Long period) {
-        try {
-            Method getScheduler = entity.getClass().getMethod("getScheduler");
-            Object scheduler = getScheduler.invoke(entity);
-            Consumer<Object> foliaConsumer = scheduledTask -> task.accept(() -> cancelScheduledTask(scheduledTask));
-
-            Object scheduledTask;
-            if ("run".equals(methodName)) {
-                Method method = findMethod(scheduler.getClass(), methodName, 3);
-                scheduledTask = method.invoke(scheduler, plugin, foliaConsumer, null);
-            } else if ("runDelayed".equals(methodName)) {
-                Method method = findMethod(scheduler.getClass(), methodName, 4);
-                scheduledTask = method.invoke(scheduler, plugin, foliaConsumer, null, delayOrInitialDelay);
-            } else {
-                Method method = findMethod(scheduler.getClass(), methodName, 5);
-                scheduledTask = method.invoke(scheduler, plugin, foliaConsumer, null, delayOrInitialDelay, period);
-            }
-
-            if (scheduledTask == null) {
-                return null;
-            }
-            return () -> cancelScheduledTask(scheduledTask);
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-            return null;
-        }
+    /** 任务体拿到的 Task 取消的是同一个 ScheduledTask（经接口方法，不经实现类）。 */
+    private static Consumer<ScheduledTask> wrap(Consumer<Task> task) {
+        return scheduled -> task.accept(of(scheduled));
     }
 
-    private static Method findMethod(Class<?> type, String name, int parameterCount) throws NoSuchMethodException {
-        for (Method method : type.getMethods()) {
-            if (method.getName().equals(name) && method.getParameterCount() == parameterCount) {
-                return method;
-            }
-        }
-        throw new NoSuchMethodException(name);
-    }
-
-    private static void cancelScheduledTask(Object scheduledTask) {
-        try {
-            Method cancel = scheduledTask.getClass().getMethod("cancel");
-            cancel.invoke(scheduledTask);
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-        }
+    private static Task of(ScheduledTask scheduled) {
+        return scheduled::cancel;
     }
 }
