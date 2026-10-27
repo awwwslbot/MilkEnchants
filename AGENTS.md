@@ -6,7 +6,7 @@
 
 - 每个 Milk 定制附魔在 `docs/enchants/<id>.md` 有一份文档，`<id>` 与 `src/main/resources/enchants/<id>.yml` 同名。它是该附魔规则、配置迁移、维护要点和测试方法的唯一权威说明：改某个附魔前先读它的文档，新增附魔时同时新建一份。
 - `docs/` 根目录放上游的通用文档：配置驱动附魔可用的动作类型见 `docs/action_types_zh.md` 和 `docs/action_types_en.md`。
-- 新增或修改附魔时，在同一提交里同步：实现、默认配置 yml（含 `description` 文案和 `max_level`）、`docs/enchants/<id>.md`、`README.md` 与 `README_EN.md` 的相关说明、单元测试。新增动作类型时同步更新两份 `action_types` 文档。发版时递增 `pom.xml` 的 `milk.N`。
+- 新增或修改附魔时，在同一提交里同步：实现、默认配置 yml（含 `description` 文案和 `max_level`）、`docs/enchants/<id>.md`、`README.md` 与 `README_EN.md` 的相关说明、单元测试。新增动作类型时同步更新两份 `action_types` 文档。新增或修改可配置项（参数声明）时重新导出 `editor/enchant-schema.json`：`JAVA_HOME=/usr/lib/jvm/zulu-25 mvn -B test -Dtest=EnchantSchemaExportTest -Dmeowsenchants.updateSchema=true`。改占位符或按等级取值的规则时，同步更新 `editor/placeholder-vectors.json` 和 `editor/scaling-vectors.json`，插件和编辑器都跑这两份向量。发版时递增 `pom.xml` 的 `milk.N`。
 
 ## 两种实现方式
 
@@ -16,7 +16,7 @@
 ## 配置分发
 
 - 插件只在 `plugins/MeowsEnchants/enchants/` 不存在时释放全部内置 yml。已有服务器既拿不到新附魔的 yml，也不会更新旧 yml。新增附魔时，要么像箭雨那样在 `MeowsEnchantsBootstrap` 里只补缺失的文件（`ArrowRainConfig.installMissing`），要么部署时手动放入 yml；修改已有附魔的配置时，把线上迁移步骤写进该附魔的文档。
-- 附魔在 bootstrap 阶段注册：换 jar 或改动 `max_level` 等注册相关配置后，完整重启服务器。插件也不支持热禁用后再启用（PlugManX reload 同样不行）：`onEnable` 里注册 `/enchants` 命令会被 Paper 拒绝，插件随即又被禁用，只能完整重启。
+- 附魔在 bootstrap 阶段注册：换 jar 或改动 `max_level` 等注册相关配置（schema 里标 `apply: restart` 的字段）后，完整重启服务器。milk.13 起其余配置用 `/enchants reload` 热应用。插件也不支持热禁用后再启用（PlugManX reload 同样不行）：`onEnable` 里注册 `/enchants` 命令会被 Paper 拒绝，插件随即又被禁用，只能完整重启。
 
 ## Folia
 
