@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -25,7 +26,7 @@ public class CombatListener implements Listener {
                 event.getCause() != EntityDamageByEntityEvent.DamageCause.PROJECTILE) return;
 
         // ✅ 正确：调用完整版本，传入 event
-        EnchantTriggerHelper.checkAndTrigger(player, "ATTACK_ENTITY",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.ATTACK_ENTITY.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }
@@ -37,7 +38,7 @@ public class CombatListener implements Listener {
         if (player == null) return;
 
         List<ItemStack> slots = EnchantTriggerHelper.getSlotsForTrigger(player);
-        EnchantTriggerHelper.checkAndTrigger(player, "KILL_ENTITY", slots,
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.KILL_ENTITY.name(), slots,
                 event, null);
     }
 
@@ -48,7 +49,7 @@ public class CombatListener implements Listener {
     public void onTakeDamage(EntityDamageByEntityEvent event) {
         if (event.isCancelled()) return;
         if (!(event.getEntity() instanceof Player player)) return;
-        EnchantTriggerHelper.checkAndTrigger(player, "TAKE_DAMAGE",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.TAKE_DAMAGE.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }
@@ -61,7 +62,7 @@ public class CombatListener implements Listener {
         if (event.isCancelled()) return;
         if (!(event.getEntity() instanceof Player player)) return;
         if (!player.isBlocking()) return;
-        EnchantTriggerHelper.checkAndTrigger(player, "SHIELD_BLOCK",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.SHIELD_BLOCK.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }

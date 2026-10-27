@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import com.windsor.meowsEnchants.actions.impl.MultiBreakAction;
 import com.windsor.meowsEnchants.actions.impl.TillAction;
 import org.bukkit.Bukkit;
@@ -99,7 +100,7 @@ public class BlockInteractionListener implements Listener {
         if (block == null) return;
 
         // 传递方块作为 extra
-        EnchantTriggerHelper.checkAndTrigger(player, "BLOCK_DIG",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.BLOCK_DIG.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, block); // extra 为 Block 对象
     }
@@ -112,7 +113,7 @@ public class BlockInteractionListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        EnchantTriggerHelper.checkAndTrigger(player, "BLOCK_BREAK",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.BLOCK_BREAK.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }
@@ -121,7 +122,7 @@ public class BlockInteractionListener implements Listener {
     public void onBlockPlace(BlockPlaceEvent event) {
         if (event.isCancelled()) return;
         Player player = event.getPlayer();
-        EnchantTriggerHelper.checkAndTrigger(player, "BLOCK_PLACE",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.BLOCK_PLACE.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }
@@ -148,7 +149,7 @@ public class BlockInteractionListener implements Listener {
             }
         }
 
-        EnchantTriggerHelper.checkAndTrigger(player, "RIGHT_CLICK",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.RIGHT_CLICK.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }

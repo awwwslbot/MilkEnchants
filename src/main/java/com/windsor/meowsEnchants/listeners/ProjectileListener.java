@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.arrowrain.ArrowRainListener;
 import org.bukkit.NamespacedKey;
@@ -39,7 +40,7 @@ public class ProjectileListener implements Listener {
         }
 
         // 触发 BOW_SHOOT 附魔（弓与弩均会触发 EntityShootBowEvent，因此两者都生效）
-        EnchantTriggerHelper.checkAndTrigger(player, "BOW_SHOOT",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.BOW_SHOOT.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, projectile);
     }
@@ -49,7 +50,7 @@ public class ProjectileListener implements Listener {
         if (event.isCancelled()) return;
         if (ArrowRainListener.isRain(event.getEntity())) return;
         if (!(event.getEntity().getShooter() instanceof Player player)) return;
-        EnchantTriggerHelper.checkAndTrigger(player, "PROJECTILE_HIT",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.PROJECTILE_HIT.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }

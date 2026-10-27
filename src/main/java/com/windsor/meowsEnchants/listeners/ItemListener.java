@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.utils.SchedulerCompat;
 import org.bukkit.entity.Player;
@@ -23,7 +24,7 @@ public class ItemListener implements Listener {
         SchedulerCompat.runDelayed(player, plugin,
                 _ -> {
                     if (player.isOnline()) {
-                        EnchantTriggerHelper.checkAndTrigger(player, "ITEM_SWAP",
+                        EnchantTriggerHelper.checkAndTrigger(player, Trigger.ITEM_SWAP.name(),
                                 EnchantTriggerHelper.getSlotsForTrigger(player),
                                 event, null);
                     }
@@ -36,7 +37,7 @@ public class ItemListener implements Listener {
     public void onConsume(PlayerItemConsumeEvent event) {
         if (event.isCancelled()) return;
         Player player = event.getPlayer();
-        EnchantTriggerHelper.checkAndTrigger(player, "CONSUME",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.CONSUME.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }

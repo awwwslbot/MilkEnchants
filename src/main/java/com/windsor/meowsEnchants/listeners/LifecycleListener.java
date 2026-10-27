@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.listeners;
 
+import com.windsor.meowsEnchants.config.Trigger;
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import com.windsor.meowsEnchants.MeowsEnchants;
 import com.windsor.meowsEnchants.utils.SchedulerCompat;
@@ -21,7 +22,7 @@ public class LifecycleListener implements Listener {
     public void onDeath(PlayerDeathEvent event) {
         // PlayerDeathEvent 不可被取消，直接处理
         Player player = event.getEntity();
-        EnchantTriggerHelper.checkAndTrigger(player, "DEATH",
+        EnchantTriggerHelper.checkAndTrigger(player, Trigger.DEATH.name(),
                 EnchantTriggerHelper.getSlotsForTrigger(player),
                 event, null);
     }
@@ -33,7 +34,7 @@ public class LifecycleListener implements Listener {
         SchedulerCompat.runDelayed(player, plugin,
                 scheduledTask -> {
                     if (player.isOnline()) {
-                        EnchantTriggerHelper.checkAndTrigger(player, "RESPAWN",
+                        EnchantTriggerHelper.checkAndTrigger(player, Trigger.RESPAWN.name(),
                                 EnchantTriggerHelper.getSlotsForTrigger(player),
                                 event, null);
                     }

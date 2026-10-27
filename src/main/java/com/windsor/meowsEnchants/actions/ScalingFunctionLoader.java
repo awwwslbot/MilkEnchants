@@ -1,10 +1,13 @@
 package com.windsor.meowsEnchants.actions;
 
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
-
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
+/**
+ * 按等级取值的四种写法：数字（固定）、{@code {scaling: fixed, value}}（固定，旧写法）、
+ * {@code {base, per_level}}（线性）、{@code [v1, v2, …]}（逐级列表）。
+ */
 public class ScalingFunctionLoader {
 
     public static ScalingFunction load(Object obj) {
@@ -27,6 +30,15 @@ public class ScalingFunctionLoader {
                     return new LinearScaling(base.doubleValue(), perLevel.doubleValue());
                 }
             }
+        } else if (obj instanceof List<?> list && !list.isEmpty()) {
+            List<Double> values = new ArrayList<>(list.size());
+            for (Object item : list) {
+                if (!(item instanceof Number number)) {
+                    throw new IllegalArgumentException("Invalid scaling function: " + obj);
+                }
+                values.add(number.doubleValue());
+            }
+            return new ListScaling(values);
         }
         throw new IllegalArgumentException("Invalid scaling function: " + obj);
     }
