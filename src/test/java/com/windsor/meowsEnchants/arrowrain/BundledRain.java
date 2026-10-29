@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.arrowrain;
 
+import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Map;
@@ -23,7 +24,12 @@ final class BundledRain {
 
     private BundledRain() {}
 
+    /** 箭雨的 cooldown 为 0：每次射击都触发。 */
     static ArrowRainListener listener(org.bukkit.plugin.Plugin plugin) {
-        return new ArrowRainListener(plugin, () -> SETTINGS);
+        return listener(plugin, new MechanicCooldown(key -> 0, System::currentTimeMillis));
+    }
+
+    static ArrowRainListener listener(org.bukkit.plugin.Plugin plugin, MechanicCooldown cooldown) {
+        return new ArrowRainListener(plugin, () -> SETTINGS, cooldown);
     }
 }

@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.arrowrain;
 
+import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.util.Map;
 import java.util.Set;
@@ -10,11 +11,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Keyed;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
@@ -40,6 +41,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     private final Plugin plugin;
     /** Current tunables, read once per shot; null while arrow_rain.yml has no landing_arrow_rain_v1 mechanic. */
     private final Supplier<ArrowRainSettings> settings;
+    /** The enchantment's cooldown, shared with tracking: checked at the shot, started when a rain is reserved. */
+    private final MechanicCooldown cooldown;
     private final AtomicBoolean enabled = new AtomicBoolean(true);
     private final Map<UUID, Shot> sources = new ConcurrentHashMap<>();
     private final Set<Shot> shots = ConcurrentHashMap.newKeySet();
@@ -47,9 +50,10 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
     private final Map<UUID, Trail> trails = new ConcurrentHashMap<>();
     private volatile RainObserver rainObserver;
 
-    public ArrowRainListener(Plugin plugin, Supplier<ArrowRainSettings> settings) {
+    public ArrowRainListener(Plugin plugin, Supplier<ArrowRainSettings> settings, MechanicCooldown cooldown) {
         this.plugin = plugin;
         this.settings = settings;
+        this.cooldown = cooldown;
     }
 
     /** Rain arrows fire no shoot event; another mechanic (tracking) can take them over here. */
@@ -60,6 +64,12 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
          * have moved or fired again since); stopTrail ends this arrow's CRIT trail.
          */
         void rainSpawned(Arrow arrow, Player shooter, ItemStack weapon, Location shotLocation, Runnable stopTrail);
+
+        /**
+         * Asked once on the original arrow's region thread when it hits and its rain starts; false keeps this
+         * observer away from that rain's arrows (tracking passes on a shot it did not take, e.g. on cooldown).
+         */
+        default boolean followsRain(AbstractArrow source) { return true; }
     }
 
     public void setRainObserver(RainObserver observer) { this.rainObserver = observer; }
@@ -75,6 +85,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         ItemStack bow = event.getBow();
         int level = enchantLevel(bow);
         if (level == 0) return;
+        // On cooldown this stays a plain arrow: no rain, no extra ammunition or durability, no message.
+        if (!cooldown.ready(player, ENCHANT)) return;
 
         trackSource(source, player, bow, level, event.getConsumable());
     }
@@ -106,12 +118,23 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         // extra rain arrows now, and never inspect a remote shooter's inventory on impact.
         shot.rainCount = AmmunitionBudget.reserve(shot.player, shot.ammunition, shot.freeAmmunition, shot.pattern.count(shot.level));
         chargeDurability(shot.firedBow, shot.player, shot.pattern.extraDurability(shot.level));
-        if (shot.rainCount == 0) finish(shot);
+        if (shot.rainCount == 0) {
+            finish(shot);
+            return;
+        }
+        // The rain is committed here (extra arrows reserved, extra durability paid): its cooldown starts now.
+        // Rain arrows never reach this point, so they can neither start another rain nor refresh the cooldown.
+        cooldown.start(shot.player, ENCHANT);
     }
 
     static int enchantLevel(ItemStack bow) {
         if (bow == null || bow.getType() != Material.BOW) return 0;
-        for (Map.Entry<Enchantment, Integer> entry : bow.getEnchantments().entrySet()) {
+        return levelOf(bow.getEnchantments());
+    }
+
+    /** Keyed rather than Enchantment, which cannot be loaded without a server (same as tracking). */
+    private static int levelOf(Map<? extends Keyed, Integer> enchantments) {
+        for (Map.Entry<? extends Keyed, Integer> entry : enchantments.entrySet()) {
             if (ENCHANT.equals(entry.getKey().getKey())) {
                 return Math.max(0, entry.getValue());
             }
@@ -146,6 +169,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         // PROJECTILE_SPAWNED (including Flame) runs after shoot/launch event observers. Read
         // the original arrow here on its owner thread, and pass immutable values to all drops.
         ArrowState state = ArrowState.capture((AbstractArrow) event.getEntity());
+        RainObserver observer = rainObserver;
+        shot.observed = observer == null || observer.followsRain((AbstractArrow) event.getEntity());
         startRain(shot, centre, state);
     }
 
@@ -195,7 +220,7 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         arrow.getScheduler().runDelayed(plugin, task -> removeOwned(arrow),
                 () -> rainArrows.remove(arrow.getUniqueId()), shot.pattern.settings().lifetimeTicks());
         RainObserver observer = rainObserver;
-        if (observer != null) observer.rainSpawned(arrow, shot.player, shot.weapon, shot.shotLocation, () -> stopTrail(arrow.getUniqueId()));
+        if (observer != null && shot.observed) observer.rainSpawned(arrow, shot.player, shot.weapon, shot.shotLocation, () -> stopTrail(arrow.getUniqueId()));
         if (!active(shot)) removeOwned(arrow); // Covers a quit/disable racing the spawn callback.
     }
 
@@ -314,6 +339,8 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         /** Read in the shoot event, on the shooter's own region thread. */
         final Location shotLocation;
         volatile int rainCount;
+        /** Whether the rain observer takes this shot's rain arrows; decided at impact. */
+        volatile boolean observed = true;
         final ShotState state = new ShotState();
         final AtomicBoolean rainStarted = new AtomicBoolean();
         final AtomicBoolean launched = new AtomicBoolean();

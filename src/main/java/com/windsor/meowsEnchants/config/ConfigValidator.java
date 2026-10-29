@@ -53,6 +53,11 @@ public final class ConfigValidator {
                 ctx.value(key, param, value);
             }
         }
+        if (value(data, EnchantSchema.MECHANIC) instanceof String flag && !EnchantSchema.isMechanicEnchant(id, flag)) {
+            ctx.warn("mechanic", "mechanic: " + flag + " 不会启用任何专用机制（只有 " + ArrowRainConfig.FILE + " 写 "
+                    + ArrowRainConfig.MECHANIC + "、" + TrackingConfig.FILE + " 写 " + TrackingConfig.MECHANIC
+                    + " 才启用），这个附魔照常走通用触发器");
+        }
         if (value(data, EnchantSchema.APPLICABLE_ITEMS) instanceof List<?> list && list.size() > 1) {
             ctx.warn("applicable_items", "applicable_items 写成列表时只取第一项 " + list.getFirst());
         }

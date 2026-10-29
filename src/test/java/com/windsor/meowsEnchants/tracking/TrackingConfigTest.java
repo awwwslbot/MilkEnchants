@@ -40,8 +40,9 @@ class TrackingConfigTest {
             assertEquals(Map.of(), config.get("actions"));
             assertEquals(false, ((Map<?, ?>) config.get("enchanting_table")).get("enabled"));
             assertEquals(false, ((Map<?, ?>) config.get("villager_trades")).get("enabled"));
-            assertNull(config.get("conflicts"));
-            // Top-level sound/particle would make the generic BOW_SHOOT trigger play them on every shot.
+            // Mutually exclusive with arrow rain, both ways (arrow_rain.yml lists tracking).
+            assertEquals(List.of("meowsenchants:arrow_rain"), config.get("conflicts"));
+            // Mechanic enchantments bypass the generic trigger, so top-level sound/particle would do nothing.
             assertNull(config.get("sound"));
             assertNull(config.get("particle"));
         }
@@ -56,7 +57,8 @@ class TrackingConfigTest {
         assertEquals(2, config.getAnvilCost());
         assertEquals("RANGED", config.getApplicableItem());
         assertTrue(config.getActions().isEmpty());
-        assertTrue(config.getConflictIds().isEmpty());
+        assertEquals(List.of("meowsenchants:arrow_rain"), config.getConflictIds());
+        assertTrue(config.getDescription().contains("&c与箭雨互斥"));
         assertFalse(config.getEnchantingTableConfig().isEnabled());
         assertFalse(config.getVillagerTradeConfig().isEnabled());
     }

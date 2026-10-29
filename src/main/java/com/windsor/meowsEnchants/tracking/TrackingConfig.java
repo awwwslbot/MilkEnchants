@@ -1,5 +1,6 @@
 package com.windsor.meowsEnchants.tracking;
 
+import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import com.windsor.meowsEnchants.schema.EnchantSchema;
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,11 +52,11 @@ public final class TrackingConfig {
     }
 
     /** The listener starts disabled; {@link TrackingListener#apply} feeds it the loaded settings. */
-    public static TrackingListener createListener(JavaPlugin plugin) {
+    public static TrackingListener createListener(JavaPlugin plugin, MechanicCooldown cooldown) {
         CombatTracker combat = new CombatTracker(TrackingSettings.DEFAULTS.pvpCombatNanos());
         ResidenceProtection residence = ResidenceProtection.bind(
                 () -> Bukkit.getPluginManager().getPlugin("Residence"), plugin.getLogger());
-        return new TrackingListener(plugin, combat, residence, TargetRules.VANILLA_PVP);
+        return new TrackingListener(plugin, combat, residence, TargetRules.VANILLA_PVP, cooldown);
     }
 
     static Sound chime(TrackingSettings settings, Logger logger) {

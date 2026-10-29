@@ -106,6 +106,13 @@ Detailed action parameters are not documented in this README. See:
 - [English: docs/action_types_en.md](docs/action_types_en.md)
 - [中文版：docs/action_types_zh.md](docs/action_types_zh.md)
 
+### Cooldown
+
+`cooldown` (milliseconds, default 0) applies to every enchantment, including mechanic enchantments such as arrow rain and tracking. It is counted per player and enchantment:
+
+- Generic enchantments: the cooldown starts only after all actions succeed; the enchantment does not trigger while it runs. For PASSIVE and holding sneak/sprint the cooldown is also the trigger period.
+- Mechanic enchantments (since milk.14): the cooldown starts the moment the mechanic actually triggers. For arrow rain that is when the original arrow launches with rain arrows reserved; for tracking it is when a shot starts tracking (one crossbow multishot volley counts once). A shot fired during the cooldown is still a normal arrow; it just starts no arrow rain and does not track, without any message. Arrow rain and tracking keep separate cooldowns, and rain arrows never refresh them. Arrow rain and tracking with their own `mechanic` flag bypass the generic trigger path, so top-level `sound` and `particle` have no effect on them; a `mechanic` flag on any other enchantment enables nothing, the enchantment keeps the generic trigger path and load-time validation reports a warning. See [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md) and [docs/enchants/tracking.md](docs/enchants/tracking.md) (in Chinese) for details.
+
 ## 4. Usage
 
 1. Download the plugin jar.
@@ -124,7 +131,7 @@ Global config path: `plugins/MeowsEnchants/config.yml`. It currently controls:
 - Villager trades `villager_trades`: book price formula, treasure multiplier, price floor and cap, default max uses, and the polluted-trade message `polluted_message`
 - Periodic triggers `triggers`: minimum periods for PASSIVE and for holding sneak/sprint (`passive_min_period_ticks` / `hold_min_period_ticks`, default 20 ticks)
 
-The last four are new in milk.13 and default to the previously hard-coded values. The plugin does not add new keys to an existing `config.yml`; missing keys use their defaults. To change one, copy it from the `config.yml` bundled in the jar.
+`skyllia_region_size`, `skyllia_protected_actions` and the last three are new in milk.13 and default to the previously hard-coded values. The plugin does not add new keys to an existing `config.yml`; missing keys use their defaults. To change one, copy it from the `config.yml` bundled in the jar.
 
 Enchantment config file path:
 
@@ -146,9 +153,9 @@ The command prints a Chinese summary (applied, restart required, warnings and er
 MEOWSENCHANTS_RELOAD {"ok":true,"pluginVersion":"0.2-milk.13","applied":["night_vision"],"restartRequired":[{"enchant":"night_vision","fields":["max_level"],"reason":"changed"}],"warnings":[],"errors":[]}
 ```
 
-`applied` lists only enchantments where at least one hot-applied value actually changed; an enchantment whose only changes are restart fields (including a `name`-only change) appears only in `restartRequired`. In the example, night_vision changed both its cooldown and `max_level`, so it is in both lists. `ok` is `false` when there are errors; `reason` is `changed` (registration fields changed), `added` (new file) or `removed` (file deleted); warnings and errors carry `enchant`, `path` and `message`. When a player or RCON runs it, the summary is also written to the server log.
+`applied` lists only enchantments where at least one hot-applied value actually changed; an enchantment whose only changes are restart fields (including a `name`-only change) appears only in `restartRequired`. In the example, night_vision changed both its cooldown and `max_level`, so it is in both lists. When `config.yml` changed, `applied` also contains `"config.yml"`, and warnings and errors about it use `"enchant": "config.yml"`. `ok` is `false` when there are errors; `reason` is `changed` (registration fields changed), `added` (new file) or `removed` (file deleted); warnings and errors carry `enchant`, `path` and `message`. When a player or RCON runs it, the summary is also written to the server log.
 
-Load-time validation runs at startup and on every reload. It only reports and never blocks: type mismatches, missing required parameters and empty per-level lists are errors (the affected actions are skipped when triggered); unknown keys, unknown values, names missing from the registries, out-of-range values and unresolved description placeholders are warnings. The startup report goes to the server log.
+Load-time validation runs at startup and on every reload. It only reports and never blocks: type mismatches, missing required parameters and empty per-level lists are errors (the affected actions are skipped when triggered); unknown keys, unknown values, names missing from the registries, out-of-range values, unresolved description placeholders and a `mechanic` flag that enables nothing are warnings. The startup report goes to the server log.
 
 ### Enchantment Browser
 
@@ -198,7 +205,7 @@ mvn clean package
 Build output:
 
 ```text
-target/meowsenchants-0.2-milk.13.jar
+target/meowsenchants-0.2-milk.14.jar
 ```
 
 ### Editor Contract Files

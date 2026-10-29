@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import com.windsor.meowsEnchants.arrowrain.ArrowRainListener;
+import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import io.papermc.paper.threadedregions.scheduler.EntityScheduler;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 class TrackingListenerTest {
+    static final MechanicCooldown NO_COOLDOWN = new MechanicCooldown(key -> 0, System::currentTimeMillis);
     private final Plugin plugin = mock(Plugin.class);
     private final World world = TargetRulesTest.world("minecraft:overworld", "world");
     private final CombatTracker combat = new CombatTracker(TimeUnit.SECONDS.toNanos(15));
@@ -61,7 +63,7 @@ class TrackingListenerTest {
     };
     private final TargetRules rules = new TargetRules(TrackingSettings.DEFAULTS, combat, claims, w -> true);
     private final Sound chime = Sound.sound(Key.key("block.note_block.chime"), Sound.Source.PLAYER, 1f, 1f);
-    private final TrackingListener listener = new TrackingListener(plugin, TrackingSettings.DEFAULTS, combat, rules, Particle.ENCHANT, chime);
+    private final TrackingListener listener = new TrackingListener(plugin, TrackingSettings.DEFAULTS, combat, rules, Particle.ENCHANT, chime, NO_COOLDOWN);
     private final Player player = TargetRulesTest.player(world);
     private final EntityScheduler playerScheduler = mock(EntityScheduler.class);
     private final Location shotLocation = new Location(world, 0, 64, 0);
@@ -410,7 +412,7 @@ class TrackingListenerTest {
         Logger logger = mock(Logger.class);
         when(plugin.getLogger()).thenReturn(logger);
         TrackingListener fragile = new TrackingListener(plugin, TrackingSettings.DEFAULTS, combat,
-                new TargetRules(TrackingSettings.DEFAULTS, combat, broken, w -> true), Particle.ENCHANT, chime);
+                new TargetRules(TrackingSettings.DEFAULTS, combat, broken, w -> true), Particle.ENCHANT, chime, NO_COOLDOWN);
         Zombie zombie = TargetRulesTest.mob(Zombie.class);
         standAt(zombie, 9, 63.5, 1.5);
         nearby.add(zombie);

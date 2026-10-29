@@ -47,7 +47,8 @@ public final class EnchantSchema {
                     Arrays.stream(TargetType.values()).map(Enum::name).toList())
             .help("从触发事件里取被命中的实体再按类型过滤；事件没有被命中的实体时作用于自己").build();
     public static final Param<Long> COOLDOWN = Param.longInt("cooldown", "冷却")
-            .help("全部动作成功后才进入冷却；PASSIVE、SNEAK_HOLD、SPRINT_HOLD 的冷却兼作触发周期（最短 1 秒）")
+            .help("全部动作成功后才进入冷却；箭雨、跟踪在机制触发时进入冷却，冷却中射出的是普通箭；"
+                    + "PASSIVE、SNEAK_HOLD、SPRINT_HOLD 的冷却兼作触发周期（最短 1 秒）")
             .unit(Param.Unit.MS).min(0).def(0)
             .danger("PASSIVE 附魔的冷却就是触发周期，同一玩家身上所有 PASSIVE 附魔共用一个周期（取最大的 cooldown），改它会影响该玩家的其他被动附魔")
             .dangerWhen("trigger", List.of("PASSIVE"))
@@ -141,8 +142,20 @@ public final class EnchantSchema {
             .help("写进原版注册表的属性，只在启动时生效").restart().build();
 
     public static final Param<String> MECHANIC = Param.string("mechanic", "专用机制标记")
-            .help("只用于箭雨（landing_arrow_rain_v1）和跟踪（tracking_v1）：写了才启用该专用机制，此时 actions 应留空")
+            .help("只用于箭雨（arrow_rain.yml 写 landing_arrow_rain_v1）和跟踪（tracking.yml 写 tracking_v1）："
+                    + "写了才启用该专用机制，此时 actions 应留空，附魔不走通用触发器，sound、particle 不生效；"
+                    + "写在别的附魔上不起作用，附魔照常走通用触发器，加载时告警")
             .build();
+
+    /**
+     * 由专用机制接管的附魔：只有箭雨（arrow_rain.yml + landing_arrow_rain_v1）和跟踪（tracking.yml + tracking_v1），
+     * 和两个机制各自的启用条件一致。别的附魔写了 {@code mechanic:} 不会启用任何机制，照常走通用触发器。
+     */
+    public static boolean isMechanicEnchant(String id, Object mechanic) {
+        String file = id + ".yml";
+        return (file.equals(ArrowRainConfig.FILE) && ArrowRainConfig.MECHANIC.equals(mechanic))
+                || (file.equals(TrackingConfig.FILE) && TrackingConfig.MECHANIC.equals(mechanic));
+    }
 
     /** 顶层字段，按 yml 里常见的顺序。 */
     public static final List<Param<?>> PARAMS = List.of(

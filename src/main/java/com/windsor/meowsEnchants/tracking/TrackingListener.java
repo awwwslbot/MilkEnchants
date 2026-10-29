@@ -1,6 +1,7 @@
 package com.windsor.meowsEnchants.tracking;
 
 import com.windsor.meowsEnchants.arrowrain.ArrowRainListener;
+import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.util.Map;
 import java.util.UUID;
@@ -55,6 +56,11 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
     private final CombatTracker combat;
     private final TargetRules.Protection protection;
     private final Predicate<World> pvpRule;
+    /**
+     * The enchantment's cooldown, shared with arrow rain: checked at each shot, started when a shot starts
+     * tracking. All projectiles of one multishot volley count as one shot; rain arrows never touch it.
+     */
+    private final MechanicCooldown cooldown;
     /** Current tunables and the rules built from them; null while tracking.yml has no tracking_v1 mechanic. */
     private volatile Runtime runtime;
     private final AtomicBoolean enabled = new AtomicBoolean(true);
@@ -79,20 +85,23 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
 
     /** Fixed settings, as built by tests. */
     TrackingListener(Plugin plugin, TrackingSettings settings, CombatTracker combat, TargetRules rules,
-                     Particle particle, Sound chime) {
+                     Particle particle, Sound chime, MechanicCooldown cooldown) {
         this.plugin = plugin;
         this.combat = combat;
         this.protection = TargetRules.Protection.NONE;
         this.pvpRule = TargetRules.VANILLA_PVP;
+        this.cooldown = cooldown;
         this.runtime = new Runtime(settings, rules, particle, chime);
     }
 
     /** Starts disabled; {@link #apply} switches it on. */
-    TrackingListener(Plugin plugin, CombatTracker combat, TargetRules.Protection protection, Predicate<World> pvpRule) {
+    TrackingListener(Plugin plugin, CombatTracker combat, TargetRules.Protection protection, Predicate<World> pvpRule,
+                     MechanicCooldown cooldown) {
         this.plugin = plugin;
         this.combat = combat;
         this.protection = protection;
         this.pvpRule = pvpRule;
+        this.cooldown = cooldown;
     }
 
     /**
@@ -142,6 +151,8 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
         if (kind == null || ArrowRainListener.isRain(entity)) return;
         int level = enchantLevel(event.getBow());
         if (level == 0) return;
+        // On cooldown this stays a plain, unmarked projectile; the player is not told.
+        if (!cooldown.ready(player, ENCHANT)) return;
         // This event runs on the shooter's region thread: the only place its position is read.
         Location shotLocation = player.getLocation();
         Shooter shooter = shooters.compute(player.getUniqueId(),
@@ -156,10 +167,18 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
     @EventHandler(priority = EventPriority.MONITOR)
     public void onLaunch(ProjectileLaunchEvent event) {
         Tracker tracker = pending.remove(event.getEntity().getUniqueId());
-        if (tracker != null && !event.isCancelled()) start(tracker);
+        // Tracking is triggered when a launched shot starts tracking: the cooldown starts here, on the shooter's thread.
+        if (tracker != null && !event.isCancelled() && start(tracker)) cooldown.start(tracker.shooter.player, ENCHANT);
     }
 
-    /** Rain arrows fire no shoot event; the arrow rain listener hands them over after spawning. */
+    /** Rain arrows track only when their original arrow did: a shot fired on cooldown keeps its rain plain too. */
+    @Override
+    public boolean followsRain(AbstractArrow source) { return isMarked(source); }
+
+    /**
+     * Rain arrows fire no shoot event; the arrow rain listener hands them over after spawning. They belong to the
+     * shot that started the rain, so they neither check nor start the cooldown.
+     */
     @Override
     public void rainSpawned(Arrow arrow, Player player, ItemStack weapon, Location shotLocation, Runnable stopTrail) {
         Runtime current = runtime;
@@ -172,8 +191,9 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
         start(new Tracker(this, current, arrow, Tracker.Kind.RAIN, level, shooter, shotLocation, stopTrail));
     }
 
-    private void start(Tracker tracker) {
-        if (!enabled.get()) return;
+    /** @return whether the tracker is running */
+    private boolean start(Tracker tracker) {
+        if (!enabled.get()) return false;
         trackers.put(tracker.id, tracker);
         shots.put(tracker.id, new ShotRecord(tracker.shooter, tracker.view, tracker.runtime.rules()));
         try {
@@ -181,12 +201,17 @@ public final class TrackingListener implements Listener, AutoCloseable, ArrowRai
                     () -> forgetProjectile(tracker.id), 1L, 1L);
             if (task == null) {
                 forgetProjectile(tracker.id);
-                return;
+                return false;
             }
             tracker.task = task;
-            if (!enabled.get()) tracker.stop(); // close() raced the registration.
+            if (!enabled.get()) {
+                tracker.stop(); // close() raced the registration.
+                return false;
+            }
+            return true;
         } catch (IllegalPluginAccessException ignored) {
             forgetProjectile(tracker.id); // Disabled concurrently.
+            return false;
         }
     }
 

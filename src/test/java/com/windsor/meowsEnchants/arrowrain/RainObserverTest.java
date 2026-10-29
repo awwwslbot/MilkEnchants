@@ -72,6 +72,22 @@ class RainObserverTest {
         assertNotEquals(second, shotAt.get());
     }
 
+    @Test void anObserverThatPassesOnTheShotNeverSeesItsRain() {
+        Fixture f = new Fixture();
+        AtomicReference<Arrow> arrow = new AtomicReference<>();
+        f.listener.setRainObserver(new ArrowRainListener.RainObserver() {
+            @Override public void rainSpawned(Arrow rain, Player player, ItemStack bow, Location location, Runnable stop) {
+                arrow.set(rain);
+            }
+
+            // Tracking passes on a shot it did not take (fired on cooldown): that rain stays plain.
+            @Override public boolean followsRain(AbstractArrow source) { return source != f.source; }
+        });
+        f.spawn();
+        assertNull(arrow.get());
+        verify(f.rain).setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED); // The rain itself still falls.
+    }
+
     @Test void withoutAnObserverRainSpawnsExactlyAsBefore() {
         Fixture f = new Fixture();
         f.spawn();

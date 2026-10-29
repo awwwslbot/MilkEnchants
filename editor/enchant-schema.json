@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "plugin": "MeowsEnchants",
-  "pluginVersion": "0.2-milk.13",
+  "pluginVersion": "0.2-milk.14",
   "triggers": [
     {
       "id": "ATTACK_ENTITY",
@@ -475,7 +475,7 @@
       {
         "key": "cooldown",
         "label": "冷却",
-        "help": "全部动作成功后才进入冷却；PASSIVE、SNEAK_HOLD、SPRINT_HOLD 的冷却兼作触发周期（最短 1 秒）",
+        "help": "全部动作成功后才进入冷却；箭雨、跟踪在机制触发时进入冷却，冷却中射出的是普通箭；PASSIVE、SNEAK_HOLD、SPRINT_HOLD 的冷却兼作触发周期（最短 1 秒）",
         "type": "int",
         "scalable": false,
         "default": 0,
@@ -872,7 +872,7 @@
       {
         "key": "mechanic",
         "label": "专用机制标记",
-        "help": "只用于箭雨（landing_arrow_rain_v1）和跟踪（tracking_v1）：写了才启用该专用机制，此时 actions 应留空",
+        "help": "只用于箭雨（arrow_rain.yml 写 landing_arrow_rain_v1）和跟踪（tracking.yml 写 tracking_v1）：写了才启用该专用机制，此时 actions 应留空，附魔不走通用触发器，sound、particle 不生效；写在别的附魔上不起作用，附魔照常走通用触发器，加载时告警",
         "type": "string",
         "scalable": false,
         "required": false,

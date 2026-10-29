@@ -107,6 +107,13 @@ registry:
 - [English: docs/action_types_en.md](docs/action_types_en.md)
 - [中文版：docs/action_types_zh.md](docs/action_types_zh.md)
 
+### 冷却
+
+`cooldown`（毫秒，默认 0）对所有附魔生效，包括箭雨、跟踪这类专用机制附魔，按「玩家 + 附魔」计时：
+
+- 通用附魔：全部动作成功后才进入冷却，冷却中这个附魔不触发。PASSIVE、持续潜行/疾跑的冷却兼作触发周期。
+- 专用机制附魔（milk.14 起）：从机制真正触发的那一刻进入冷却。箭雨是原箭成功发射、预留到雨箭的时候，跟踪是一次射击开始跟踪的时候（弩的多重射击算一次）。冷却中射出的箭照常是普通箭，只是不触发箭雨、不跟踪，没有任何提示。箭雨和跟踪各自计时，雨箭不刷新冷却。箭雨、跟踪写了各自的 `mechanic` 标记时不走通用触发器，顶层 `sound`、`particle` 对它们不生效；`mechanic` 写在别的附魔上不起作用，附魔照常走通用触发器，加载期校验报一条警告。细节见 [docs/enchants/arrow_rain.md](docs/enchants/arrow_rain.md) 和 [docs/enchants/tracking.md](docs/enchants/tracking.md)。
+
 ## 4. 插件使用方法
 
 1. 下载插件 jar。
@@ -125,7 +132,7 @@ registry:
 - 村民交易 `villager_trades`：附魔书价格公式、宝藏附魔倍数、价格上下限、默认交易次数和污染交易提示 `polluted_message`
 - 周期触发器 `triggers`：PASSIVE 和持续潜行/疾跑的最短触发周期（`passive_min_period_ticks` / `hold_min_period_ticks`，默认 20 tick）
 
-后四项是 milk.13 新增的，默认值都等于以前写死的值。插件不会往已有的 `config.yml` 里补新键，缺的键按默认值；要改时照 jar 里内置的 `config.yml` 加上。
+`skyllia_region_size`、`skyllia_protected_actions` 和后三项是 milk.13 新增的，默认值都等于以前写死的值。插件不会往已有的 `config.yml` 里补新键，缺的键按默认值；要改时照 jar 里内置的 `config.yml` 加上。
 
 附魔配置文件位于：
 
@@ -147,9 +154,9 @@ plugins/MeowsEnchants/enchants/<enchant_id>.yml
 MEOWSENCHANTS_RELOAD {"ok":true,"pluginVersion":"0.2-milk.13","applied":["night_vision"],"restartRequired":[{"enchant":"night_vision","fields":["max_level"],"reason":"changed"}],"warnings":[],"errors":[]}
 ```
 
-`applied` 只列至少有一项可热生效的值真的变了的附魔；只改了需重启字段（包括只改 `name`）的附魔只出现在 `restartRequired`。上例中 night_vision 同时改了冷却和 `max_level`，所以两边都有它。`ok` 为 `false` 表示有错误；`reason` 是 `changed`（注册字段改了）、`added`（新文件）或 `removed`（文件被删）；警告和错误都带 `enchant`、`path`、`message`。玩家或 RCON 执行时，摘要也会写进服务端日志。
+`applied` 只列至少有一项可热生效的值真的变了的附魔；只改了需重启字段（包括只改 `name`）的附魔只出现在 `restartRequired`。上例中 night_vision 同时改了冷却和 `max_level`，所以两边都有它。`config.yml` 有改动时，`applied` 里会多一项 `"config.yml"`；属于 config.yml 的警告和错误，`enchant` 写成 `"config.yml"`。`ok` 为 `false` 表示有错误；`reason` 是 `changed`（注册字段改了）、`added`（新文件）或 `removed`（文件被删）；警告和错误都带 `enchant`、`path`、`message`。玩家或 RCON 执行时，摘要也会写进服务端日志。
 
-加载期校验在启动和每次 reload 时运行，只报告，不拦截：类型不符、缺必填参数、逐级列表为空是错误（对应的动作触发时被跳过）；未知键、未知取值、注册表里不存在的名字、超出范围、无法解析的说明占位符是警告。启动时的报告打在服务端日志里。
+加载期校验在启动和每次 reload 时运行，只报告，不拦截：类型不符、缺必填参数、逐级列表为空是错误（对应的动作触发时被跳过）；未知键、未知取值、注册表里不存在的名字、超出范围、无法解析的说明占位符、不会启用任何机制的 `mechanic` 是警告。启动时的报告打在服务端日志里。
 
 ### 附魔查询界面
 
@@ -199,7 +206,7 @@ mvn clean package
 构建产物位于：
 
 ```text
-target/meowsenchants-0.2-milk.13.jar
+target/meowsenchants-0.2-milk.14.jar
 ```
 
 ### 编辑器契约文件

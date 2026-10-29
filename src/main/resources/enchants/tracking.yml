@@ -66,3 +66,5 @@ tracking:
     # 1.0 已是单个声音的最大响度，更大只会让更远处也听得到
     volume: 1.0
     pitch: 1.0
+conflicts:
+  - meowsenchants:arrow_rain

@@ -1,6 +1,7 @@
 name: "<gradient:#CFCFCF:#00D4FF>箭雨"
 description:
   - "&f箭矢首次命中后，从天降下箭雨"
+  - "&c与跟踪互斥"
   - "&7可用于：&e弓"
   - "&d最高等级：5"
   - "&7提升等级时："
@@ -25,6 +26,8 @@ cooldown: 0
 # Dedicated shot/impact lifecycle; an empty action map prevents legacy multi_arrow double firing.
 mechanic: landing_arrow_rain_v1
 actions: {}
+conflicts:
+  - meowsenchants:tracking
 
 # Arrow rain tunables. Keys missing from an older file use these defaults.
 # 落地箭雨参数；旧文件缺少的键按这里的默认值。按等级的项可写固定值、{base, per_level} 或逐级列表：

@@ -158,14 +158,23 @@ public final class EnchantTriggerHelper {
     }
 
     public static boolean isOnCooldown(Player player, Key enchantKey) {
+        return isOnCooldown(player, enchantKey, System.currentTimeMillis());
+    }
+
+    /** now：当前毫秒时间；专用机制的冷却（{@link MechanicCooldown}）也走这里，测试可以换时钟。 */
+    static boolean isOnCooldown(Player player, Key enchantKey, long now) {
         Map<Key, Long> map = getPlayerCooldownMap(player);
         Long end = map.get(enchantKey);
-        return end != null && System.currentTimeMillis() < end;
+        return end != null && now < end;
     }
 
     public static void setCooldown(Player player, Key enchantKey, long cooldownMs) {
+        setCooldown(player, enchantKey, cooldownMs, System.currentTimeMillis());
+    }
+
+    static void setCooldown(Player player, Key enchantKey, long cooldownMs, long now) {
         if (cooldownMs <= 0) return;
-        long end = System.currentTimeMillis() + cooldownMs;
+        long end = now + cooldownMs;
         getPlayerCooldownMap(player).put(enchantKey, end);
     }
 
@@ -216,8 +225,7 @@ public final class EnchantTriggerHelper {
             Key key = entry.getKey();
             EnchantConfig config = entry.getValue();
 
-            String configTrigger = config.getTrigger();
-            if (configTrigger == null || !configTrigger.equalsIgnoreCase(triggerName)) {
+            if (!handles(config, triggerName)) {
                 continue;
             }
 
@@ -281,6 +289,18 @@ public final class EnchantTriggerHelper {
                 setCooldown(player, key, config.getCooldown());
             }
         }
+    }
+
+    /**
+     * 通用触发器是否处理这个附魔的这次触发：触发器对得上，且不是专用机制附魔。
+     * 专用机制附魔（箭雨、跟踪）由各自的监听器处理，冷却也由机制在真正触发时设置（{@link MechanicCooldown}）；
+     * 这里不能替它们执行空动作、播效果、进冷却，否则射击时先进了冷却，机制就再也触发不了。
+     * 只认两个已知标记：别的附魔误写了 {@code mechanic:} 照常处理（校验器另报 warning），不会被静默跳过。
+     */
+    static boolean handles(EnchantConfig config, String triggerName) {
+        String configTrigger = config.getTrigger();
+        if (configTrigger == null || !configTrigger.equalsIgnoreCase(triggerName)) return false;
+        return !config.isMechanicEnchant();
     }
 
     /**

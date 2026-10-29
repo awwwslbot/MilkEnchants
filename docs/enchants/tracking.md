@@ -1,6 +1,6 @@
 # 跟踪（tracking）
 
-附魔 ID 为 `meowsenchants:tracking`，显示名「跟踪」，适用于弓和弩，最高三级。玩家用带跟踪的弓或弩射出的箭（普通箭、药水箭、光灵箭，多重射击的每一支）和弩射出的烟花火箭会自动拐向飞行路线附近的目标；同一把弓上还有箭雨时，雨箭也会跟踪。骷髅、发射器射出的不跟踪。
+附魔 ID 为 `meowsenchants:tracking`，显示名「跟踪」，适用于弓和弩，最高三级。玩家用带跟踪的弓或弩射出的箭（普通箭、药水箭、光灵箭，多重射击的每一支）和弩射出的烟花火箭会自动拐向飞行路线附近的目标。与箭雨互斥；管理员强行让两者共存时，雨箭也会跟踪（见 [arrow_rain.md](arrow_rain.md)「和跟踪的配合」）。骷髅、发射器射出的不跟踪。
 
 | 等级 | 判定半径（飞行路线两侧） |
 | --- | --- |
@@ -49,9 +49,9 @@
 
 ## 配置和获得方式
 
-`plugins/MeowsEnchants/enchants/tracking.yml`，启动时只在文件不存在时补上，不覆盖已有配置。专用机制标记 `mechanic: tracking_v1`，`actions: {}` 留空；没有这个标记时跟踪不启用，启动日志会提示。附魔台、村民交易都关（`enabled: false`），注册时不加原版战利品/交易标签，只能用命令获得（`/minecraft:enchant @s meowsenchants:tracking 3`）。铁砧基础成本 2，不和任何附魔冲突，不额外消耗耐久和箭。
+`plugins/MeowsEnchants/enchants/tracking.yml`，启动时只在文件不存在时补上，不覆盖已有配置。专用机制标记 `mechanic: tracking_v1`，`actions: {}` 留空；没有这个标记时跟踪不启用，启动日志会提示。附魔台、村民交易都关（`enabled: false`），注册时不加原版战利品/交易标签，只能用命令获得（`/minecraft:enchant @s meowsenchants:tracking 3`）。铁砧基础成本 2，与箭雨互斥（`conflicts: [meowsenchants:arrow_rain]`，箭雨那边也写了跟踪，内置配置和生产配置都是），正常途径不能附在同一把弓上；不额外消耗耐久和箭。内置 `cooldown: 0`，即没有冷却，见下文「冷却」。
 
-可调参数在 `tracking:` 段（旧文件缺键时逐项按默认值；不要放到顶层 `sound`/`particle`，那是通用触发器在每次射击时都会播放的效果）：
+可调参数在 `tracking:` 段（旧文件缺键时逐项按默认值；不要放到顶层 `sound`/`particle`：写了 `mechanic: tracking_v1` 的跟踪不走通用触发器，顶层的这两项不生效）：
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
@@ -73,12 +73,22 @@
 
 > **危险**：从 `never_tracked` 删掉一项后，跟踪弓弩的箭会自动射向这种生物，烟花爆炸也会伤到它们（例如村民、铁傀儡）。从 `neutral_until_attacking` 删掉一项后，跟踪的箭会主动射向没在攻击任何人的这种生物，可能把整群中立怪（如僵尸猪灵）引来。
 
+### 冷却
+
+milk.14 起跟踪读 `cooldown`（毫秒）。冷却按「玩家 + 附魔」计，和通用附魔是同一套计时（`EnchantTriggerHelper`），由跟踪和箭雨共用的入口 `listeners/MechanicCooldown` 处理：
+
+- 每次射击的 `EntityShootBowEvent` 里先查冷却。冷却中射出的弹射物不归跟踪管：不打 `tracking_level` 标记、不跟踪，照常作为普通箭或烟花飞行，所以下文的命名生物保护和烟花爆炸过滤也不管它；没有任何提示。
+- 冷却从一次射击开始跟踪的那一刻算：`ProjectileLaunchEvent` 未取消、跟踪任务已经启动。发射被取消的那一箭不进冷却。
+- 弩的多重射击一次射出几支，每支各有一次射击和发射事件。同一射手在同一区域 tick 里射出的算一次触发：几支都跟踪，冷却从第一支算，后几支不刷新。
+- 雨箭跟随产生它的那一箭：原箭跟踪了，雨箭才跟踪（见「生命周期与 Folia」）；雨箭既不查也不刷新冷却。跟踪和箭雨的冷却各自计时，互不影响。
+- `cooldown` 改完用 `/enchants reload` 生效，从下一次射击起按新值计。
+
 新附魔要在 bootstrap 阶段注册：上线时换 jar 后完整重启。milk.13 起 `tracking:` 段和 `mechanic` 开关可以用 `/enchants reload` 生效：之后射出的弹射物用新参数，已经在跟踪的保留开始跟踪时的参数快照（`pvp_combat_seconds` 例外，战斗表是共用的，改了立即对所有判定生效）；去掉 `mechanic` 后正在跟踪的弹射物下一 tick 停止。`max_level` 等注册字段仍要完整重启。`paper-plugin.yml` 把 Residence 声明为可选的服务端依赖（`required: false`、`load: BEFORE`、`join-classpath: true`）。
 
 ## 生命周期与 Folia
 
-- 在 `EntityShootBowEvent`（MONITOR，未取消）里读这次射击用的弓/弩上的等级、打 PDC 标记、记下射手位置快照；`ProjectileLaunchEvent` 未取消后才在弹射物自己的实体调度器上启动每 tick 任务。弩的多重射击每支各有一次射击事件和发射事件（真服实测 3 支 = 3 次射击事件 + 3 次发射事件）。之后不再读手持物品。
-- 雨箭由箭雨用 `world.spawn` 生成，没有射击事件：`ArrowRainListener` 生成雨箭后通过 `RainObserver` 交给跟踪模块，等级取箭雨在射击时克隆的弓。
+- 在 `EntityShootBowEvent`（MONITOR，未取消）里读这次射击用的弓/弩上的等级、查冷却、打 PDC 标记、记下射手位置快照；`ProjectileLaunchEvent` 未取消后才在弹射物自己的实体调度器上启动每 tick 任务，并从这时开始计冷却。弩的多重射击每支各有一次射击事件和发射事件（真服实测 3 支 = 3 次射击事件 + 3 次发射事件）。之后不再读手持物品。
+- 雨箭由箭雨用 `world.spawn` 生成，没有射击事件：`ArrowRainListener` 生成雨箭后通过 `RainObserver` 交给跟踪模块，等级取箭雨在射击时克隆的弓。原箭命中、箭雨开始时箭雨先问 `followsRain`：原箭没有 `tracking_level` 标记（射出时跟踪在冷却中）的那场箭雨不交给跟踪。
 - 每 5 tick 一次实体范围查询，锁定后每 tick 只做向量计算、一次 `setVelocity`/`setRotation` 和一次粒子。查询框里不属于当前区域的区块直接跳过（全部属于当前区域时一次查询，否则只查属于当前区域的区块切片）；视线射线经过的区块未加载或属于别的区域时算被挡住。锁定目标离开当前区域时松开。
 - 弹射物线程不读写射手的实时状态，只读射击时快照和线程安全的数据。两处跨区域只读：`Player#canSee`（隐身判断）和 Residence 的权限查询（Residence 自己的伤害监听也在各区域线程里这样做）。PvP 战斗表是并发表，玩家下线清理。
 - 每支跟踪弹射物有两份状态：跟踪任务（停止时立即从表里移除）和射击记录（射手会话 + 射击时快照，保留到实体移除，供烟花爆炸过滤使用）。
@@ -98,7 +108,7 @@
 JAVA_HOME=/usr/lib/jvm/zulu-25 mvn -B clean verify
 ```
 
-单元测试（`src/test/java/com/windsor/meowsEnchants/tracking/`，另有 `arrowrain/RainObserverTest`）：线段/路线到碰撞箱的精确距离（含 2000 个随机样例对照密集采样）、原版箭/烟花轨迹预测、限角转向与保持速率、直接对准、放弃、复现决策台模拟（各级 1–45 格静止目标全部利落命中、锁定后最多 12 tick）、优先级与换目标、目标分类和各排除项、PvP 战斗表、Residence 语义（假实现，含疣猪兽两个 flag 都要允许、按 flag 跳过检查）及不认识 Residence 时只警告一次、配置默认值和缺键、`never_tracked` / `neutral_until_attacking` 来自配置、监听器的射击/发射/雨箭等级与位置来源/命名穿过/烟花爆炸过滤（用这支烟花自己的射击记录，射手之后在别处再射不影响 PvP 判定）/射击记录在实体移除和调度器退休时释放/多重射击只响一次/穿透/超时/下线/关闭。
+单元测试（`src/test/java/com/windsor/meowsEnchants/tracking/`，另有 `arrowrain/RainObserverTest`）：线段/路线到碰撞箱的精确距离（含 2000 个随机样例对照密集采样）、原版箭/烟花轨迹预测、限角转向与保持速率、直接对准、放弃、复现决策台模拟（各级 1–45 格静止目标全部利落命中、锁定后最多 12 tick）、优先级与换目标、目标分类和各排除项、PvP 战斗表、Residence 语义（假实现，含疣猪兽两个 flag 都要允许、按 flag 跳过检查）及不认识 Residence 时只警告一次、配置默认值和缺键、`never_tracked` / `neutral_until_attacking` 来自配置、监听器的射击/发射/雨箭等级与位置来源/命名穿过/烟花爆炸过滤（用这支烟花自己的射击记录，射手之后在别处再射不影响 PvP 判定）/射击记录在实体移除和调度器退休时释放/多重射击只响一次/穿透/超时/下线/关闭；冷却（`TrackingCooldownTest`：冷却中不打标记、不跟踪，到时后恢复，`cooldown: 0` 每次都跟踪，多重射击算一次且不刷新，发射取消不进冷却，雨箭跟随原箭、不刷新冷却，箭雨的冷却不挡跟踪）。
 
 真服实测在仓库外 `/home/swim/code/ProjectMilkRepo/_tracking/`（以下相对于该目录）：
 

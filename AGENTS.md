@@ -11,7 +11,7 @@
 ## 两种实现方式
 
 - **配置驱动**：只写 `enchants/<id>.yml`，组合现有动作类型。需要新行为时在 `actions/impl/` 加一个动作类型，先例是 `auto_bow` 和 `draw_accelerate`。
-- **专用机制**：动作系统表达不了的附魔，像箭雨一样单独建包（`arrowrain/`）。yml 里写 `mechanic: <名称>_v<N>` 作为启用标记，`actions: {}` 留空，避免和同名旧配置的动作叠加触发。
+- **专用机制**：动作系统表达不了的附魔，像箭雨一样单独建包（`arrowrain/`）。yml 里写 `mechanic: <名称>_v<N>` 作为启用标记，`actions: {}` 留空，避免和同名旧配置的动作叠加触发。写对标记的附魔不走通用触发器（`EnchantTriggerHelper.handles` 只认 `EnchantSchema.isMechanicEnchant` 列出的「文件 + 标记」，新机制要加进去；别的附魔误写 `mechanic:` 照常走通用触发器，校验器报警告），`cooldown` 由机制自己经 `listeners/MechanicCooldown` 读：射击时查，机制真正触发时开始计时，计时和通用附魔是同一套。新机制照此接入。
 
 ## 配置分发
 
@@ -47,6 +47,6 @@ JAVA_HOME=/usr/lib/jvm/zulu-25 mvn -B clean verify
 
 ## 发布到生产
 
-- 生产服 jar 以二进制形式提交在配置仓库 ProjectMilkConfigs 的 `survival/plugins/` 中（先例：`cc992ef8 chore(meowsenchants): fix auto_bow release (0.2-milk.7)`），部署靠手动。替换前先核对线上正在运行的 jar 和配置备份，线上 jar 可能被热补丁过。
+- 生产服 jar 以二进制形式提交在配置仓库 MilkServerConfig（本地 `../MilkServerConfig`；GitHub 仓库名 ProjectMilkConfigs，生产裸库名 MilkServerConfig）的 `survival/plugins/` 中（先例：`cc992ef8 chore(meowsenchants): fix auto_bow release (0.2-milk.7)`），部署靠手动。替换前先核对线上正在运行的 jar 和配置备份，线上 jar 可能被热补丁过。
 - 线上 yml 按各附魔文档里的迁移步骤处理。
 - 本地测试服的插件组合和区域都比生产少：涉及其他插件交互或跨区域的行为，生产前还要在完整插件组合和多个 Folia 区域并发下验证。

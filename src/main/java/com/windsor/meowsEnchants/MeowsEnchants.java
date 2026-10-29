@@ -28,6 +28,7 @@ import com.windsor.meowsEnchants.listeners.FallDamageListener;
 import com.windsor.meowsEnchants.listeners.FishingListener;
 import com.windsor.meowsEnchants.listeners.ItemListener;
 import com.windsor.meowsEnchants.listeners.LifecycleListener;
+import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import com.windsor.meowsEnchants.listeners.PassiveTaskManager;
 import com.windsor.meowsEnchants.listeners.PlayerStateListener;
 import com.windsor.meowsEnchants.listeners.ProjectileListener;
@@ -98,9 +99,11 @@ public class MeowsEnchants extends JavaPlugin {
         saveDefaultConfig();
         ListScaling.setWarner(message -> getSLF4JLogger().warn(message));
 
-        // 两个专用机制的监听器总是注册，是否启用由当前运行时配置决定（reload 可开关）
-        arrowRain = new ArrowRainListener(this, () -> runtime.arrowRain());
-        tracking = TrackingConfig.createListener(this);
+        // 两个专用机制的监听器总是注册，是否启用由当前运行时配置决定（reload 可开关）；
+        // 它们的 cooldown 走同一个入口，和通用附魔共用「玩家 + 附魔」的计时
+        MechanicCooldown mechanicCooldown = MechanicCooldown.configured();
+        arrowRain = new ArrowRainListener(this, () -> runtime.arrowRain(), mechanicCooldown);
+        tracking = TrackingConfig.createListener(this, mechanicCooldown);
         ReloadReport report = loadConfiguration(true);
         report.lines(getPluginMeta().getVersion(), true).forEach(line -> getSLF4JLogger().info(line));
 

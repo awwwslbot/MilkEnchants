@@ -94,6 +94,18 @@ class ConfigValidatorTest {
         assertEquals(List.of(), check("tracking.yml", BASE + "tracking: {radius: [2.0]}\n", ConfigValidator.Registries.NONE));
     }
 
+    @Test void aMechanicFlagThatEnablesNothingWarns() {
+        assertEquals(List.of(), check("arrow_rain.yml", BASE + "mechanic: landing_arrow_rain_v1\n", ConfigValidator.Registries.NONE));
+        assertEquals(List.of(), check("tracking.yml", BASE + "mechanic: tracking_v1\n", ConfigValidator.Registries.NONE));
+        for (String[] stray : new String[][] {
+                {"probe.yml", "tracking_v1"}, {"arrow_rain.yml", "tracking_v1"}, {"tracking.yml", "landing_arrow_rain_v2"}}) {
+            ConfigValidator.Issue issue = only(check(stray[0], BASE + "mechanic: " + stray[1] + "\n", ConfigValidator.Registries.NONE));
+            assertFalse(issue.error(), issue.toString());
+            assertEquals("mechanic", issue.path());
+            assertTrue(issue.message().contains("照常走通用触发器"), issue.message());
+        }
+    }
+
     @Test void mechanicSectionsBelongToTheirOwnFile() {
         ConfigValidator.Issue issue = only(check(BASE + "tracking: {radius: [2.0]}\n"));
         assertEquals("tracking", issue.path());

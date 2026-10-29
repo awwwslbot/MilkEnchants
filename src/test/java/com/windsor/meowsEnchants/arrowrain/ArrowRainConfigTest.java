@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.windsor.meowsEnchants.config.EnchantConfigLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import net.kyori.adventure.key.Key;
 import org.junit.jupiter.api.Test;
@@ -52,5 +53,8 @@ class ArrowRainConfigTest {
         assertEquals("BOW", config.getApplicableItem());
         assertTrue(config.getActions().isEmpty());
         assertEquals(0, config.getCooldown());
+        // Mutually exclusive with tracking, both ways (tracking.yml lists arrow_rain); the lore says so too.
+        assertEquals(List.of("meowsenchants:tracking"), config.getConflictIds());
+        assertTrue(config.getDescription().contains("&c与跟踪互斥"));
     }
 }

@@ -290,6 +290,12 @@ public class EnchantConfig {
     public @NotNull Map<String, Object> getRawData() { return rawData; }
     /** {@code registry:} 段（缺省 = milk.12 写死的值）。 */
     public @NotNull RegistrySettings getRegistrySettings() { return RegistrySettings.from(rawData); }
+    /** {@code mechanic:} 原文；是否真的由专用机制接管看 {@link #isMechanicEnchant()}。 */
+    public @Nullable String getMechanic() {
+        return EnchantSchema.MECHANIC.raw(rawData) instanceof String flag ? flag : null;
+    }
+    /** 箭雨、跟踪写了各自的标记：由专用机制处理，不走通用触发器（{@link EnchantSchema#isMechanicEnchant}）。 */
+    public boolean isMechanicEnchant() { return EnchantSchema.isMechanicEnchant(id, getMechanic()); }
     public @NotNull List<String> getConflictIds() { return conflictIds; }
     public @Nullable SoundConfig getSoundConfig() { return soundConfig; }
     public @Nullable ParticleConfig getParticleConfig() { return particleConfig; }
