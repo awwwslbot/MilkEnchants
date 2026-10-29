@@ -1,16 +1,19 @@
 # TODO: 表达式引擎 —— action / effect 分层与概率包装
 
 > 状态: 设计草案 (未实现)
-> 分支: `feature/expression-engine`
-> 说明: 本分支仅为占位与设计记录，暂不改动运行时代码。
+> 分支: 无（本文件在 milk 上，没有独立分支）
+> 说明: 仅为设计记录，运行时代码没有按本文改动。
+> 2026-10-29 更新「现状」：milk.13（27df9ef）已给每个动作加了通用 `chance`，概率版淬毒用现有配置就能写；
+> 下文的 `PossibilityAction` 只在需要嵌套组合时才有必要。第 2 节起是当初的设计，数字按写作时的代码。
 
 ## 1. 背景 / 现状
 
-- 配置里 `actions:` 是一组**固定类型**的动作节点，节点里的 `type` 直接映射到 22 个 Java 实现。
-- `ActionRegistry` 中硬编码 22 个工厂；接口为 `Action#execute(ActionContext): boolean`。
-- **没有表达式、没有组合、没有条件/概率 DSL**；唯一的"计算"是 `ScalingFunction`（`fixed` / `linear`）。
-- `chance`（概率）**散落在少数 effect 内部**（`drop_head` / `repair` / `feast` / `deflect` / `reflect_damage`），
-  其它 effect（尤其 `potion_effect`）**没有概率能力** —— 这正是"淬毒附魔无法做概率版"的根因。
+- 配置里 `actions:` 是一组**固定类型**的动作节点，节点里的 `type` 直接映射到 Java 实现。
+- `ActionRegistry` 中硬编码 24 种动作（含不进编辑器 schema 的 `command`）；接口为 `Action#execute(ActionContext): boolean`。
+- **没有表达式、没有组合、没有条件 DSL**；唯一的"计算"是 `ScalingFunction`：固定值、`{base, per_level}`，以及 milk.13 加的逐级列表。
+- 概率：milk.13 起每个动作都可以写通用 `chance`（`ActionRegistry.CHANCE`，见 `action_types_zh.md`「通用参数 chance」），
+  执行前先掷骰，没中视为动作失败。`potion_effect` 因此也有了概率，"淬毒附魔无法做概率版"已经不成立。
+  `drop_head` / `repair` / `feast` / `deflect` / `reflect_damage` / `multi_arrow` 内部原有的概率照旧保留。
 
 ## 2. 目标
 
@@ -71,14 +74,14 @@ action:
 - [ ] `EnchantConfig` / `EnchantConfigLoader` / `EnchantTriggerHelper` 适配新 schema
 - [ ] YAML schema 版本号 + 迁移工具（旧 `actions/type` → 新 `action/effect`）
 - [ ] 更新 `docs/action_types_{zh,en}.md`（区分 action / effect）
-- [ ] 迁移内置 35 个 `enchants/*.yml` 示例
+- [ ] 迁移内置 39 个 `enchants/*.yml` 示例
 
 ## 6. 影响面
 
 - 代码：`actions/Action.java`、`ActionContext.java`、`ActionRegistry.java`、`ActionLoader.java`、
   `actions/impl/*`（22 个）、`config/EnchantConfig*.java`、`listeners/EnchantTriggerHelper.java`、
   `AttributeModifierHelper.java`、`gui/EnchantBrowser.java`
-- 配置：全部 `enchants/*.yml`（35 个）+ 用户自定义附魔（如 `quench_poison.yml`）
+- 配置：全部 `enchants/*.yml`（39 个）+ 用户自定义附魔（如 `quench_poison.yml`）
 - 文档：`README.md` / `README_EN.md` / `docs/*`
 - **破坏性变更**：是（需迁移；建议支持旧 schema 一段时间）
 

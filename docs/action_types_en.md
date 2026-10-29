@@ -635,12 +635,26 @@ transforms:
 > state constraints are compatible.
 
 ```yaml
+# Default tilling behaviour
 actions:
   farm:
     type: till
     radius:
       base: 1
       per_level: 1
+```
+
+```yaml
+# Custom table: right click turns ice into water and obsidian into lava
+actions:
+  entropy:
+    type: till
+    radius: 0
+    inherit_defaults: false
+    transforms:
+      ICE: WATER
+      OBSIDIAN: LAVA
+    consume_durability: true
 ```
 
 ```yaml

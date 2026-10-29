@@ -4,6 +4,7 @@
 > 优先级：中（功能已可用，但反射路径缺少编译期保障）
 > 影响版本：`0.2-milk.7` 起
 > 相关代码：`src/main/java/com/windsor/meowsEnchants/listeners/AutoBowManager.java`
+> 2026-10-29 核对：milk.14 仍是反射实现，本文仍有效；LibMilkyWay 在另一个仓库（MilkPlugins），路径已按现在的目录布局改过。
 
 ## 1. 背景
 
@@ -60,7 +61,7 @@ release.invoke(handle);
 
 ### 方案 A：迁移到 Gradle + `paperweight.userdev`（推荐，与 LibMilkyWay 一致）
 
-参照 `plugins/MilkPlugins/LibMilkyWay/build.gradle.kts`：
+参照 `MilkPlugins/LibMilkyWay/build.gradle.kts`（MilkPlugins 仓库，路径相对 ProjectMilkRepo 根目录，下同）：
 
 ```kotlin
 plugins {
@@ -85,11 +86,11 @@ dependencies {
 
 两种做法：
 
-1. 把 `run/survival/versions/26.1.2/folia-26.1.2.jar` 安装到本地仓库：
+1. 把本地 Folia 26.1.2 服务端 jar（目前在 `_arrowrain/runtime/versions/26.1.2/folia-26.1.2.jar`，以实际位置为准）安装到本地仓库：
 
    ```bash
    mvn install:install-file \
-     -Dfile=run/survival/versions/26.1.2/folia-26.1.2.jar \
+     -Dfile=/home/swim/code/ProjectMilkRepo/_arrowrain/runtime/versions/26.1.2/folia-26.1.2.jar \
      -DgroupId=dev.folia -DartifactId=folia-server \
      -Dversion=26.1.2 -Dpackaging=jar
    ```
@@ -209,12 +210,12 @@ dependencies {
 
 ## 10. 参考资料
 
-- LibMilkyWay（同仓库）：
-  - `plugins/MilkPlugins/LibMilkyWay/build.gradle.kts`
-  - `plugins/MilkPlugins/LibMilkyWay/src/main/kotlin/nms/MilkNMS.kt`
-  - `plugins/MilkPlugins/LibMilkyWay/src/main/kotlin/nms/MinecraftVersion.kt`
-  - `plugins/MilkPlugins/LibMilkyWay/src/main/kotlin/nms/mapart/v26_1/MapArtNMS26_1.kt`
-  - `plugins/MilkPlugins/LibMilkyWay/src/main/kotlin/nms/mapart/fallback/ReflectionMapArtNMS.kt`
+- LibMilkyWay（MilkPlugins 仓库）：
+  - `MilkPlugins/LibMilkyWay/build.gradle.kts`
+  - `MilkPlugins/LibMilkyWay/src/main/kotlin/nms/MilkNMS.kt`
+  - `MilkPlugins/LibMilkyWay/src/main/kotlin/nms/MinecraftVersion.kt`
+  - `MilkPlugins/LibMilkyWay/src/main/kotlin/nms/mapart/v26_1/MapArtNMS26_1.kt`
+  - `MilkPlugins/LibMilkyWay/src/main/kotlin/nms/mapart/fallback/ReflectionMapArtNMS.kt`
 - Paper 官方 paperweight-userdev 文档：<https://docs.papermc.io/paper/dev/userdev>
 - 非官方 Maven 方案（备选）：<https://github.com/Alvinn8/paper-nms-maven-plugin>
 - 当前反射实现：`src/main/java/com/windsor/meowsEnchants/listeners/AutoBowManager.java` 的 `releaseUsingItem` 方法
