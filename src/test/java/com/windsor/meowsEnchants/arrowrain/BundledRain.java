@@ -24,6 +24,14 @@ final class BundledRain {
 
     private BundledRain() {}
 
+    /**
+     * Whether a region task scheduled with this delay is a rain drop rather than the shot's completion. Both run
+     * at impact height (drops are scheduled on their column and choose their spawn height when they run).
+     */
+    static boolean isDrop(long delay, int level) {
+        return delay <= RAIN.lastSpawnTick(level);
+    }
+
     /** 箭雨的 cooldown 为 0：每次射击都触发。 */
     static ArrowRainListener listener(org.bukkit.plugin.Plugin plugin) {
         return listener(plugin, new MechanicCooldown(key -> 0, System::currentTimeMillis));

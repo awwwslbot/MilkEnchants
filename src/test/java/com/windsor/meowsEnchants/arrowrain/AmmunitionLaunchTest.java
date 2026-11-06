@@ -130,12 +130,14 @@ class AmmunitionLaunchTest {
         final ProjectileLaunchEvent launch = mock(ProjectileLaunchEvent.class);
         final Map<Integer, ItemStack> slots = new HashMap<>();
         final Map<ItemStack, String> variants = new HashMap<>();
+        final int level;
 
         Fixture(int level, int remaining, boolean nativeFree) {
             this(level, remaining, nativeFree, Material.ARROW, "normal");
         }
 
         Fixture(int level, int remaining, boolean nativeFree, Material type, String variant) {
+            this.level = level;
             when(player.getUniqueId()).thenReturn(UUID.randomUUID());
             when(player.getGameMode()).thenReturn(GameMode.SURVIVAL);
             when(player.getInventory()).thenReturn(inventory);
@@ -156,6 +158,8 @@ class AmmunitionLaunchTest {
             when(source.getLocation()).thenReturn(new Location(world, 10, 64, 10));
             when(world.getMinHeight()).thenReturn(-64);
             when(world.getMaxHeight()).thenReturn(320);
+            RainWorld.openSky(world);
+            RainWorld.fallingOnto(source);
             when(launch.getEntity()).thenReturn(source);
             listener.trackSource(source, player, bow, level, stack(type, 1, variant));
         }
@@ -183,7 +187,7 @@ class AmmunitionLaunchTest {
         int captureRainCount() {
             AtomicInteger drops = new AtomicInteger();
             when(regions.runDelayed(eq(plugin), any(Location.class), any(), anyLong())).thenAnswer(invocation -> {
-                if (((Location) invocation.getArgument(1)).getY() == 84.0) drops.incrementAndGet();
+                if (BundledRain.isDrop(invocation.getArgument(3), level)) drops.incrementAndGet();
                 return mock(ScheduledTask.class);
             });
             ProjectileHitEvent hit = mock(ProjectileHitEvent.class);

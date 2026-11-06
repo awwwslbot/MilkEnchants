@@ -15,6 +15,7 @@ public record ArrowRainSettings(
         ScalingFunction extraDurability,
         ScalingFunction releaseTicks,
         double height,
+        double minHeight,
         double speed,
         int lifetimeTicks,
         int sourceMaxTicks,
@@ -35,8 +36,12 @@ public record ArrowRainSettings(
     public static final Param<ScalingFunction> RELEASE_TICKS = Param.scalableInt("release_ticks", "释放窗口")
             .help("雨箭在第 1 tick 到第这么多 tick 之间均匀生成").unit(Param.Unit.TICK).min(1)
             .def(List.of(20, 40, 60, 80, 100)).build();
-    public static final Param<Double> HEIGHT = Param.number("height", "释放高度")
-            .help("雨箭生成在命中点上方多少格").unit(Param.Unit.BLOCK).min(0).def(20.0).build();
+    public static final Param<Double> HEIGHT = Param.number("height", "最高释放高度")
+            .help("头顶空间够时雨箭生成在命中点上方多少格").unit(Param.Unit.BLOCK).min(0).def(20.0).build();
+    public static final Param<Double> MIN_HEIGHT = Param.number("min_height", "最低头顶空间")
+            .help("从命中点高度量到这一列天花板（往上第一块挡箭的方块的下沿，世界建筑上限也算）不够这么多格时，这支雨箭不生成；"
+                    + "够但不到 height + 0.5 格时，雨箭生成在天花板下 0.5 格")
+            .unit(Param.Unit.BLOCK).min(0).def(4.0).build();
     public static final Param<Double> SPEED = Param.number("speed", "下落初速度")
             .help("格/tick，之后按原版重力和阻力").min(0).def(2.5).build();
     public static final Param<Integer> LIFETIME_TICKS = Param.integer("lifetime_ticks", "雨箭寿命")
@@ -57,7 +62,7 @@ public record ArrowRainSettings(
 
     /** {@code arrow_rain:} 段的全部参数。 */
     public static final List<Param<?>> PARAMS = List.of(ARROWS, RADIUS, EXTRA_DURABILITY, RELEASE_TICKS, HEIGHT,
-            SPEED, LIFETIME_TICKS, SOURCE_MAX_TICKS, TRAIL);
+            MIN_HEIGHT, SPEED, LIFETIME_TICKS, SOURCE_MAX_TICKS, TRAIL);
 
     public static final ArrowRainSettings DEFAULTS = fromYaml(null);
 
@@ -71,6 +76,7 @@ public record ArrowRainSettings(
                 lenient(EXTRA_DURABILITY, s),
                 lenient(RELEASE_TICKS, s),
                 HEIGHT.read(s),
+                Math.max(0.0, MIN_HEIGHT.read(s)),
                 SPEED.read(s),
                 Math.max(1, LIFETIME_TICKS.read(s)),
                 Math.max(1, SOURCE_MAX_TICKS.read(s)),

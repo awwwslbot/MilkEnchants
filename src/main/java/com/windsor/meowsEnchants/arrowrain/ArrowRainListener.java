@@ -2,7 +2,10 @@ package com.windsor.meowsEnchants.arrowrain;
 
 import com.windsor.meowsEnchants.listeners.MechanicCooldown;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +19,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
+import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
@@ -32,6 +37,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 /** Captures the actual fired bow once; impact never consults the shooter's current equipment. */
@@ -169,31 +175,82 @@ public final class ArrowRainListener implements Listener, AutoCloseable {
         // PROJECTILE_SPAWNED (including Flame) runs after shoot/launch event observers. Read
         // the original arrow here on its owner thread, and pass immutable values to all drops.
         ArrowState state = ArrowState.capture((AbstractArrow) event.getEntity());
+        // The impact point's own headroom, read once here on the source's thread and in its own column; every
+        // drop column whose impact-height block is solid (slopes, walls) is capped by it.
+        double centreCeiling = centreCeiling((AbstractArrow) event.getEntity(), centre, shot.pattern);
         RainObserver observer = rainObserver;
         shot.observed = observer == null || observer.followsRain((AbstractArrow) event.getEntity());
-        startRain(shot, centre, state);
+        startRain(shot, centre, centreCeiling, state);
     }
 
-    private void startRain(Shot shot, Location centre, ArrowState state) {
+    /**
+     * The ceiling above the impact point (see {@link RainHeight#centreCeiling}). The point is the one the arrow
+     * hit from: its position a hair back along its flight, so a wall or ceiling hit reads the air in front of
+     * it, and a hit on a bottom slab's top stays on the slab (ground, by its collision boxes). That probe can
+     * cross into a chunk another region owns; the arrow's own position is used then.
+     */
+    private static double centreCeiling(AbstractArrow source, Location centre, RainPattern pattern) {
+        World world = centre.getWorld();
+        Location probe = centre;
+        Vector velocity = source.getVelocity();
+        if (velocity.lengthSquared() > 0) {
+            Location back = centre.clone().subtract(velocity.clone().normalize().multiply(RainHeight.PROBE_BACKOFF));
+            if (Bukkit.isOwnedByCurrentRegion(back) && world.isChunkLoaded(back.getBlockX() >> 4, back.getBlockZ() >> 4)) {
+                probe = back;
+            }
+        }
+        return RainHeight.centreCeiling(centre.getY(), probe.getY(), pattern.height(), pattern.minHeight(),
+                world.getMinHeight(), world.getMaxHeight(), new WorldColumn(world, probe.getX(), probe.getZ()));
+    }
+
+    /**
+     * The world's column through the point (x, z); reads only blocks of that column, i.e. of its chunk. A block
+     * stops arrows when it has a collision box (same test as an arrow's block collision), as a full block; the
+     * block holding the impact height is looked at by its collision boxes at the point.
+     */
+    record WorldColumn(World world, double x, double z) implements RainHeight.Column {
+        @Override public boolean blocks(int y) { return !block(y).isPassable(); }
+
+        @Override public boolean blocksPoint(int y, double fy) {
+            List<RainHeight.Box> boxes = new ArrayList<>();
+            for (BoundingBox box : block(y).getCollisionShape().getBoundingBoxes()) {
+                boxes.add(new RainHeight.Box(box.getMinX(), box.getMinY(), box.getMinZ(), box.getMaxX(), box.getMaxY(), box.getMaxZ()));
+            }
+            return RainHeight.stops(boxes, x - Math.floor(x), fy, z - Math.floor(z));
+        }
+
+        private Block block(int y) { return world.getBlockAt((int) Math.floor(x), y, (int) Math.floor(z)); }
+    }
+
+    private void startRain(Shot shot, Location centre, double centreCeiling, ArrowState state) {
         if (!active(shot) || !shot.rainStarted.compareAndSet(false, true)) return;
         RainPattern pattern = shot.pattern;
         for (RainPattern.Drop drop : pattern.drops(shot.level, shot.rainCount, ThreadLocalRandom.current())) {
-            Location spawn = centre.clone().add(drop.x(), pattern.height(), drop.z());
-            if (spawn.getY() >= spawn.getWorld().getMaxHeight()
-                    || spawn.getY() < spawn.getWorld().getMinHeight()) continue;
-            shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, spawn, task -> spawnRain(shot, spawn, state), drop.tick()));
+            // Regions follow chunks, not y: schedule on the drop's column at impact height. Its spawn height is
+            // chosen from that column's blocks when the arrow spawns (out-of-world impacts are skipped there).
+            Location column = centre.clone().add(drop.x(), 0, drop.z());
+            shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, column,
+                    task -> spawnRain(shot, column, centreCeiling, state), drop.tick()));
         }
         // Keep the final drop alive for its full cleanup window, including level III at tick 60.
         long completionTick = pattern.lastSpawnTick(shot.level) + (long) pattern.settings().lifetimeTicks();
         shot.add(Bukkit.getRegionScheduler().runDelayed(plugin, centre, task -> finish(shot), completionTick));
     }
 
-    private void spawnRain(Shot shot, Location location, ArrowState state) {
+    private void spawnRain(Shot shot, Location column, double centreCeiling, ArrowState state) {
         if (!active(shot)) return;
-        // Do not load/generate an unvisited chunk, or create arrows inside solid ceilings.
-        if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)
-                || !location.getBlock().isPassable()) return;
-        Arrow arrow = location.getWorld().spawn(location, Arrow.class, rain -> {
+        World world = column.getWorld();
+        int x = column.getBlockX();
+        int z = column.getBlockZ();
+        // Do not load/generate an unvisited chunk.
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) return;
+        // Only this column is read (this chunk, on its own region thread), at the moment this arrow spawns.
+        OptionalDouble height = RainHeight.spawnY(column.getY(), shot.pattern.height(), shot.pattern.minHeight(),
+                centreCeiling, world.getMinHeight(), world.getMaxHeight(), new WorldColumn(world, column.getX(), column.getZ()));
+        if (height.isEmpty()) return; // Not enough headroom here: this arrow is skipped, nothing is registered.
+        Location location = column.clone();
+        location.setY(height.getAsDouble());
+        Arrow arrow = world.spawn(location, Arrow.class, rain -> {
             rain.getPersistentDataContainer().set(GENERATED, PersistentDataType.BYTE, (byte) 1);
             // resetPickupStatus=false only copies owner identity; it never reads live shooter state.
             rain.setShooter(shot.player, false);

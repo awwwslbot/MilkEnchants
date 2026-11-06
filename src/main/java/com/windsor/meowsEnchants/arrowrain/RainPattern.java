@@ -11,7 +11,10 @@ public final class RainPattern {
     public RainPattern(ArrowRainSettings settings) { this.settings = settings; }
 
     public ArrowRainSettings settings() { return settings; }
+    /** Highest spawn height above the impact point; columns with less headroom spawn under their ceiling. */
     public double height() { return settings.height(); }
+    /** Headroom (impact height to the column's ceiling) below which a rain arrow is skipped. */
+    public double minHeight() { return settings.minHeight(); }
     public double speed() { return settings.speed(); }
     public int count(int level) { return Math.max(0, (int) settings.arrows().getValue(level)); }
     public double radius(int level) { return Math.max(0.0, settings.radius().getValue(level)); }

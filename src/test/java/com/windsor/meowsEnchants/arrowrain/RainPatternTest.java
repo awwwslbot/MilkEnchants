@@ -11,8 +11,9 @@ class RainPatternTest {
         assertArrayEquals(new int[]{2, 4, 8, 16, 32}, new int[]{BundledRain.RAIN.extraDurability(1)+1, BundledRain.RAIN.extraDurability(2)+1, BundledRain.RAIN.extraDurability(3)+1, BundledRain.RAIN.extraDurability(4)+1, BundledRain.RAIN.extraDurability(5)+1});
     }
 
-    @Test void releaseStartsTwentyBlocksAboveTheImpactPoint() {
+    @Test void releaseIsAtMostTwentyBlocksAboveTheImpactPointAndNeedsFourBlocksOfHeadroom() {
         assertEquals(20.0, BundledRain.RAIN.height());
+        assertEquals(4.0, BundledRain.RAIN.minHeight());
     }
 
     @Test void everyArrowStaysInDiskAndIsReleasedEvenlyWithinItsLevelWindow() {

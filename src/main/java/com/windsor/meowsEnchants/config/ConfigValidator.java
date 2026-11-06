@@ -2,6 +2,7 @@ package com.windsor.meowsEnchants.config;
 
 import com.windsor.meowsEnchants.actions.ActionRegistry;
 import com.windsor.meowsEnchants.arrowrain.ArrowRainConfig;
+import com.windsor.meowsEnchants.arrowrain.ArrowRainSettings;
 import com.windsor.meowsEnchants.schema.EnchantSchema;
 import com.windsor.meowsEnchants.schema.Param;
 import com.windsor.meowsEnchants.tracking.TrackingConfig;
@@ -58,6 +59,9 @@ public final class ConfigValidator {
                     + ArrowRainConfig.MECHANIC + "、" + TrackingConfig.FILE + " 写 " + TrackingConfig.MECHANIC
                     + " 才启用），这个附魔照常走通用触发器");
         }
+        if (fileName.equals(ArrowRainConfig.FILE) && data.get(ArrowRainConfig.SECTION) instanceof Map<?, ?> rain) {
+            arrowRainHeights(ctx, rain);
+        }
         if (value(data, EnchantSchema.APPLICABLE_ITEMS) instanceof List<?> list && list.size() > 1) {
             ctx.warn("applicable_items", "applicable_items 写成列表时只取第一项 " + list.getFirst());
         }
@@ -68,6 +72,19 @@ public final class ConfigValidator {
             }
         }
         return ctx.issues;
+    }
+
+    /** min_height 大于 height 时照规则算（头顶空间要够 min_height 才下，生成高度不超过 height），只告警。 */
+    private static void arrowRainHeights(Context ctx, Map<?, ?> section) {
+        double height = ArrowRainSettings.HEIGHT.read(section);
+        double minHeight = ArrowRainSettings.MIN_HEIGHT.read(section);
+        if (minHeight > height) {
+            String prefix = ArrowRainConfig.SECTION + ".";
+            ctx.warn(prefix + ArrowRainSettings.MIN_HEIGHT.key(), prefix + ArrowRainSettings.MIN_HEIGHT.key() + " = "
+                    + trim(minHeight) + " 大于 " + prefix + ArrowRainSettings.HEIGHT.key() + " = " + trim(height)
+                    + "：头顶空间不够 " + trim(minHeight) + " 格的列不生成雨箭，生成高度仍不超过命中点上方 "
+                    + trim(height) + " 格");
+        }
     }
 
     public static List<Issue> validateGlobal(Map<String, Object> data, Registries registries) {

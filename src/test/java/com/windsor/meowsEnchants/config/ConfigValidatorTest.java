@@ -112,6 +112,21 @@ class ConfigValidatorTest {
         assertEquals(List.of(), check("arrow_rain.yml", BASE + "arrow_rain: {arrows: 4}\n", ConfigValidator.Registries.NONE));
     }
 
+    @Test void aRainMinimumAboveItsHeightWarnsButIsAccepted() {
+        ConfigValidator.Registries none = ConfigValidator.Registries.NONE;
+        assertEquals(List.of(), check("arrow_rain.yml", BASE + "arrow_rain: {height: 20.0, min_height: 4.0}\n", none));
+        assertEquals(List.of(), check("arrow_rain.yml", BASE + "arrow_rain: {height: 6, min_height: 6}\n", none));
+        ConfigValidator.Issue issue = only(check("arrow_rain.yml", BASE + "arrow_rain: {height: 20, min_height: 25}\n", none));
+        assertFalse(issue.error());
+        assertEquals("arrow_rain.min_height", issue.path());
+        assertTrue(issue.message().contains("arrow_rain.min_height = 25 大于 arrow_rain.height = 20"), issue.message());
+        // An omitted key is its default (height 20, min_height 4).
+        assertEquals("arrow_rain.min_height", only(check("arrow_rain.yml", BASE + "arrow_rain: {min_height: 21}\n", none)).path());
+        assertEquals("arrow_rain.min_height", only(check("arrow_rain.yml", BASE + "arrow_rain: {height: 3}\n", none)).path());
+        // Other files' sections are not arrow rain's.
+        assertEquals("arrow_rain", only(check(BASE + "arrow_rain: {height: 3}\n")).path());
+    }
+
     @Test void unknownEnumValuesActionsAndMissingParameters() {
         assertFalse(only(check(BASE.replace("RIGHT_CLICK", "LEFT_CLICK"))).error());
         assertFalse(only(check(BASE.replace("target: SELF", "target: everyone"))).error());

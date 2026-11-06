@@ -143,6 +143,7 @@ class MovedConstantsTest {
         assertEquals(new ListScaling(List.of(1.0, 3.0, 7.0, 15.0, 31.0)), s.extraDurability());
         assertEquals(new ListScaling(List.of(20.0, 40.0, 60.0, 80.0, 100.0)), s.releaseTicks());
         assertEquals(20.0, s.height());
+        assertEquals(4.0, s.minHeight());                          // milk.15: rain under low ceilings
         assertEquals(2.5, s.speed());
         assertEquals(30, s.lifetimeTicks());
         assertEquals(1200, s.sourceMaxTicks());

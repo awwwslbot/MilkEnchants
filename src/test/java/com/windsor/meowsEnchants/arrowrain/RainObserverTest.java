@@ -13,7 +13,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Player;
@@ -126,11 +125,10 @@ class RainObserverTest {
             when(world.getMinHeight()).thenReturn(-64);
             when(world.getMaxHeight()).thenReturn(320);
             when(world.isChunkLoaded(anyInt(), anyInt())).thenReturn(true);
-            Block block = mock(Block.class);
-            when(block.isPassable()).thenReturn(true);
-            when(world.getBlockAt(any(Location.class))).thenReturn(block);
+            RainWorld.openSky(world);
+            RainWorld.fallingOnto(source);
             when(regions.runDelayed(eq(plugin), any(Location.class), any(), anyLong())).thenAnswer(invocation -> {
-                if (((Location) invocation.getArgument(1)).getY() == 84.0) drop.compareAndSet(null, invocation.getArgument(2));
+                if (BundledRain.isDrop(invocation.getArgument(3), 1)) drop.compareAndSet(null, invocation.getArgument(2));
                 return mock(ScheduledTask.class);
             });
             when(rain.getUniqueId()).thenReturn(UUID.randomUUID());
