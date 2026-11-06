@@ -22,6 +22,6 @@ class EnchantSchemaExportTest {
     }
 
     @Test void versionComesFromTheBuild() {
-        assertEquals("0.2-milk.14", SchemaExport.pluginVersion());
+        assertEquals("0.2-milk.15", SchemaExport.pluginVersion());
     }
 }

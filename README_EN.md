@@ -205,7 +205,7 @@ mvn clean package
 Build output:
 
 ```text
-target/meowsenchants-0.2-milk.14.jar
+target/meowsenchants-0.2-milk.15.jar
 ```
 
 ### Editor Contract Files
